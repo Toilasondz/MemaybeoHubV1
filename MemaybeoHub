@@ -11,8 +11,8 @@ end
 game.StarterGui:SetCore(
     "SendNotification",
     {
-        Title = "Turbo Lite",
-        Text = "Đang Tải",
+        Title = "Hg Van Son",
+        Text = "Đang load",
         Duration = 5
     })
 
@@ -89,8 +89,8 @@ local fask = task
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Turbo Lite Hub",
-    SubTitle = "Hello World!",
+    Title = "MeMayBeoHub",
+    SubTitle = "No Pro",
     TabWidth = 110,
     Size = UDim2.fromOffset(480, 320),
     Acrylic = false,
