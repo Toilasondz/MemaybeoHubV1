@@ -128,7 +128,7 @@ ImageButton.BorderSizePixel = 0
 ImageButton.Position = UDim2.new(0.120833337, 0, 0.0952890813, 0)
 ImageButton.Size = UDim2.new(0, 50, 0, 50)
 ImageButton.Draggable = true
-ImageButton.Image = "http://www.roblox.com/asset/?id=18919385586"
+ImageButton.Image = "http://www.roblox.com/asset/?id=102408429268015"
 
 UICorner.CornerRadius = UDim.new(0, 10) 
 UICorner.Parent = ImageButton
@@ -139,7 +139,7 @@ end)
 
 local function playSound()
     local sound = Instance.new("Sound", game:GetService("CoreGui"))
-    sound.SoundId = "rbxassetid://"
+    sound.SoundId = "rbxassetid://102408429268015"
     sound.Volume = 10
     sound:Play()
 end
@@ -1378,20 +1378,20 @@ function GetDistance(q)
 end
 
 ---------------SettingTab
-Tabs.infor:AddSection("Nhóm Discord Của Tớ ~")
+Tabs.infor:AddSection("Mẹ Mày Béo Hub ~")
 Tabs.infor:AddButton({
-        Title = "Tham Gia Nhóm | Turbo Lite Và Các Bạn",
-        Description = "https://discord.gg/zKA8VNHzME | Sao Chép Link",
+        Title = "Ê | Mẹ mày béo",
+        Description = "Vũ Bình | Sao Chép Link",
         Callback = function()
-        setclipboard("https://discord.gg/zKA8VNHzME | Sao Chép Link")
+        setclipboard("Mẹ Mày Béo Hub  | Sao Chép Link")
         end
     })
     Tabs.infor:AddSection("Kênh YouTube Của Tớ ~")
 Tabs.infor:AddButton({
-        Title = "Đăng Ký Kênh Của Tớ Với Nha :>>",
-        Description = "https://youtube.com/@turboxlite | Turbo Lite",
+        Title = "Flo nick tiktok của bố | hoangvanson_9k :>>",
+        Description = "Con Mẹ Mày Béo",
         Callback = function()
-        setclipboard("YouTube: Turbo Lite")
+        setclipboard("Tiktok: hoangvanson_9k")
         end
     })
 ---------------TabStatus
@@ -1674,7 +1674,7 @@ end)()
 local Section = Tabs.Main:AddSection("Main Setup Setting Farm")
 Tabs.Main:AddButton({
     Title = "Siêu Pro Fix Lag | Booster",
-    Description = "Giảm Độ Họa Để Chơi Mượt Hơn Thoii",
+    Description = "Giảm đồ hoạ đi mẹ mày béo",
     Callback = function()
         local function FPSBooster()
             local decalsyeeted = true
