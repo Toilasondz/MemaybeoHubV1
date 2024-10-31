@@ -99,17 +99,17 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    infor = Window:AddTab({ Title = "Trang Chủ", Icon = "" }),
+    infor = Window:AddTab({ Title = "Trang Chủ", Icon = "house" }),
     Main = Window:AddTab({ Title = "Auto Farm", Icon = "" }),
     Home = Window:AddTab({ Title = "Trạng Thái", Icon = "" }),
     item = Window:AddTab({ Title = "Auto Item", Icon = "" }),
     C = Window:AddTab({ Title = "Kill Player", Icon = "" }),
     tele = Window:AddTab({ Title = "Dịch Chuyển", Icon = "" }),
-    an = Window:AddTab({ Title = "Config Misc", Icon = "" }),
+    an = Window:AddTab({ Title = "Cài Đặt", Icon = "" }),
     meo = Window:AddTab({ Title = "Đảo Bí Ẩn", Icon = "" }),
     Race = Window:AddTab({ Title = "Trial Tộc V4", Icon = "" }),
-    Raid = Window:AddTab({ Title = "Raid Fruit", Icon = "" }),
-    Melee = Window:AddTab({ Title = "Cửa Hàng", Icon = "" })
+    Raid = Window:AddTab({ Title = "Raid Fruit", Icon = "apple" }),
+    Melee = Window:AddTab({ Title = "Cửa Hàng", Icon = "shop" })
 }
 
 local Options = Fluent.Options
