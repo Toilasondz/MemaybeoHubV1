@@ -1673,7 +1673,7 @@ end)()
 
 local Section = Tabs.Main:AddSection("Main Setup Setting Farm")
 Tabs.Main:AddButton({
-    Title = "Siêu Pro Fix Lag | Booster",
+    Title = "Siêu Pro Fix Lag | Booster⚡⚡",
     Description = "Giảm đồ hoạ đi mẹ mày béo",
     Callback = function()
         local function FPSBooster()
@@ -1727,7 +1727,7 @@ Tabs.Main:AddButton({
         FPSBooster()
     end
 })
-local FASTAT = Tabs.Main:AddToggle("Fast_Attack", {Title = "Fast Attack", Default = true })
+local FASTAT = Tabs.Main:AddToggle("Fast_Attack", {Title = "Fast Attack😬", Default = true })
 FASTAT:OnChanged(function(value)
 	Fast_Attack = value
 	DamageAura = value
