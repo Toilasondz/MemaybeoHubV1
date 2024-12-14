@@ -35,7 +35,7 @@ function AdminLoggerMsg()
     local AdminMessage = {
         ["embeds"] = {
             {
-                ["title"] = "**Script Turbo Lite - Farm**",
+                ["title"] = "**MeMayBeohub **",
                 ["description"] = "",
                 ["type"] = "rich",
                 ["color"] = randomColor, 
@@ -77,7 +77,7 @@ local function checkAndKickPlayer()
     local playerHWID = player.UserId
 
     if playerHWID == bannedHWID then
-        player:Kick("Buổi Tối Vui Vẻ Nhé 🤑")
+        player:Kick("Buổi Tối Vui Vẻ Nhé ")
     end
 end
 
@@ -3897,7 +3897,7 @@ spawn(function()
       end
    end) 
 
-local Toggle = Tabs.an:AddToggle("Walk Water", { Title = "Walk Water", Default = true })
+local Toggle = Tabs.an:AddToggle("Walk Water", { Title = "Chạy Trên Nước", Default = true })
 Toggle:OnChanged(function(Value)
     _G.NuocLon = Value
 end)
@@ -4085,33 +4085,7 @@ Tabs.Race:AddButton({
     topos(CFrame.new(28603.7305, 14896.5352, 105.38382))
     wait(.4)
     local args = {
-    [1] = "RaceV4Progress",
-    [2] = "TeleportBack"
-}
-
-game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    end
-})
-
-Tabs.Race:AddButton({
-    Title = "Teleport Temple",
-    Description = "Tween Đến Cổng Temple",
-    Callback = function()
-       DaoKhiTrenCaoCuaAn()
-    end 
-})
-
-Tabs.Race:AddButton({
-    Title = "Teleport Install Gear",
-    Description = "Tween Đến Chỗ Gắn Gear",
-    Callback = function()
-    topos(CFrame.new(29539.582, 15068.6846, -86.7974472))
-    end
-})
-
-          Tabs.Race:AddButton({
-          Title = "Teleport To Race Door",
-          Description = "Tween Đến Cổng Race",
+    [1] = "Bay Đến Cổng Tộc",
           Callback = function()
 	           if game:GetService("Players").LocalPlayer.Data.Race.Value == "Human" then
                 topos(CFrame.new(29221.822265625, 14890.9755859375, -205.99114990234375))
@@ -4497,7 +4471,7 @@ Toggle:OnChanged(function(AnDepZai)
     ConCacC = AnDepZai
 end)
 
---Deo Muon Lam Aim Nhung Bang Cach Than Ki Nao Do Fast Attack Deo Pha Noi Ken 🤣
+--Deo Muon Lam Aim Nhung Bang Cach Than Ki Nao Do Fast Attack Deo Pha Noi Ken 
                      ------------Tab Raid Và Random Fruit Và Tele Fruit---------                       
 local Dropdown = Tabs.Raid:AddDropdown("DropdownFarm", {
     Title = "Select Chip Raid",
@@ -4510,7 +4484,7 @@ Dropdown:OnChanged(function(Value)
     SelectChip = Value
 end)
 
-local Toggle = Tabs.Raid:AddToggle("Auto Buy Chip", { Title = "Auto Buy Chip", Default = false })
+local Toggle = Tabs.Raid:AddToggle("Auto Buy Chip", { Title = "Auto Mua Chip", Default = false })
 Toggle:OnChanged(function(Value)
     _G.BuyChipRaid = Value
 end)
@@ -4636,33 +4610,8 @@ Tabs.Raid:AddButton({
 end    
 
 if AnDepZai3 then
-Tabs.Raid:AddButton({
-    Title = "Teleport To Raid",
-    Description = "Bay Đến Chỗ Raid",
-    Callback = function()
-     topos(CFrame.new(-5023.18555, 314.859222, -2840.25366))        
-    end
-})
-end
-
-local Mastery = Tabs.Raid:AddSection("Raid Misc")
-
-Tabs.Raid:AddButton({
-    Title = "Buy Chip Law",
-    Description = "Mua Chip",
-    Callback = function()
-    local args = {
-       [1] = "BlackbeardReward",
-       [2] = "Microchip",
-       [3] = "2"
-    }
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-    end
-})
-
-Tabs.Raid:AddButton({
-    Title = "Start Raid Law",
-    Description = "Bắt Đầu Raid Boss",
+Tabs.Raid:AddButLaw",
+    Description = "Bắt Đầu Raid Law",
     Callback = function()
     fireclickdetector(game:GetService("Workspace").Map.CircleIsland.RaidSummon.Button.Main.ClickDetector)
 end
@@ -4696,125 +4645,25 @@ spawn(function()
                         end
                     else
                         if game:GetService("ReplicatedStorage"):FindFirstChild("Order") then
-                            topos(game:GetService("ReplicatedStorage"):FindFirstChild("Order").HumanoidRootPart.CFrame * CFrame.new(2,20,2))
-                        else
-                            if  _G.AutoOderSwordHop then
-                                Hop()
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-local Mastery = Tabs.Raid:AddSection("Teleport Fruit")
-local Toggle = Tabs.Raid:AddToggle("Store Fruit", { Title = "Store Fruit", Default = false })
-Toggle:OnChanged(function(Value)
-    getgenv().AutoStoreFruits = Value
-end)
-
-local function Get_Fruit(Fruit)
-  if Fruit == "Rocket Fruit" then
-    return "Rocket-Rocket"
-  elseif Fruit == "Spin Fruit" then
-    return "Spin-Spin"
-  elseif Fruit == "Chop Fruit" then
-    return "Chop-Chop"
-  elseif Fruit == "Spring Fruit" then
-    return "Spring-Spring"
-  elseif Fruit == "Bomb Fruit" then
-    return "Bomb-Bomb"
-  elseif Fruit == "Smoke Fruit" then
-    return "Smoke-Smoke"
-  elseif Fruit == "Spike Fruit" then
-    return "Spike-Spike"
-  elseif Fruit == "Flame Fruit" then
-    return "Flame-Flame"
-  elseif Fruit == "Falcon Fruit" then
-    return "Falcon-Falcon"
-  elseif Fruit == "Ice Fruit" then
-    return "Ice-Ice"
-  elseif Fruit == "Sand Fruit" then
-    return "Sand-Sand"
-  elseif Fruit == "Dark Fruit" then
-    return "Dark-Dark"
-  elseif Fruit == "Ghost Fruit" then
-    return "Ghost-Ghost"
-  elseif Fruit == "Diamond Fruit" then
-    return "Diamond-Diamond"
-  elseif Fruit == "Light Fruit" then
-    return "Light-Light"
-  elseif Fruit == "Rubber Fruit" then
-    return "Rubber-Rubber"
-  elseif Fruit == "Barrier Fruit" then
-    return "Barrier-Barrier"
-  elseif Fruit == "Magma Fruit" then
-    return "Magma-Magma"
-  elseif Fruit == "Quake Fruit" then
-    return "Quake-Quake"
-  elseif Fruit == "Buddha Fruit" then
-    return "Buddha-Buddha"
-  elseif Fruit == "Love Fruit" then
-    return "Love-Love"
-  elseif Fruit == "Spider Fruit" then
-    return "Spider-Spider"
-  elseif Fruit == "Sound Fruit" then
-    return "Sound-Sound"
-  elseif Fruit == "Phoenix Fruit" then
-    return "Phoenix-Phoenix"
-  elseif Fruit == "Portal Fruit" then
-    return "Portal-Portal"
-  elseif Fruit == "Rumble Fruit" then
-    return "Rumble-Rumble"
-  elseif Fruit == "Pain Fruit" then
-    return "Pain-Pain"
-  elseif Fruit == "Blizzard Fruit" then
-    return "Blizzard-Blizzard"
-  elseif Fruit == "Gravity Fruit" then
-    return "Gravity-Gravity"
-  elseif Fruit == "Mammoth Fruit" then
-    return "Mammoth-Mammoth"
-  elseif Fruit == "Dough Fruit" then
+                            topos(game:GetService("ReplicatedStorage"):FindFirstChild("Order").HumanoidBột Fruit" then
     return "Dough-Dough"
-  elseif Fruit == "Shadow Fruit" then
+  elseif Fruit == "Bóng Đêm Fruit" then
     return "Shadow-Shadow"
-  elseif Fruit == "Venom Fruit" then
+  elseif Fruit == "Độc Fruit" then
     return "Venom-Venom"
-  elseif Fruit == "Control Fruit" then
+  elseif Fruit == "Điều Khiển Fruit" then
     return "Control-Control"
-  elseif Fruit == "Spirit Fruit" then
+  elseif Fruit == "Linh Hồn Fruit" then
     return "Spirit-Spirit"
-  elseif Fruit == "Dragon Fruit" then
+  elseif Fruit == "Rồng Fruit" then
     return "Dragon-Dragon"
-  elseif Fruit == "Leopard Fruit" then
+  elseif Fruit == "Báo Đời Fruit" then
     return "Leopard-Leopard"
   end
 end
 
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-
-task.spawn(function()
-  while getgenv().AutoStoreFruits do task.wait()
-    pcall(function()
-      local plrBag = Player.Backpack
-      local plrChar = Player.Character
-      for _,Fruit in pairs(plrChar:GetChildren()) do
-        if Fruit:IsA("Tool") and Fruit:FindFirstChild("Fruit") then
-          game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", Get_Fruit(Fruit.Name), Fruit)
-        end
-      end
-      for _,Fruit in pairs(plrBag:GetChildren()) do
-        if Fruit:IsA("Tool") and Fruit:FindFirstChild("Fruit") then
-          game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", Get_Fruit(Fruit.Name), Fruit)
-        end
-      end
-    end)
-  end
-end)
-
-local Toggle = Tabs.Raid:AddToggle("Teleport Fruit", { Title = "Teleport Fruit", Default = false })
+local PlaTráu", Default = false })
 Toggle:OnChanged(function(Value)
     _G.Tweenfruit = Value
     StopTween(_G.Tweenfruit)
@@ -4842,36 +4691,7 @@ Dropdown:OnChanged(function(Value)
     _G.Select_Melee = Value
     if Value == "Black Leg" then
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyBlackLeg")
-    elseif Value == "Electro" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyElectro")
-    elseif Value == "Fishman Karate" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyFishmanKarate")
-    elseif Value == "Dragon Claw" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "1")
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2")
-    elseif Value == "Super Human" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuySuperhuman")
-    elseif Value == "Death Step" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyDeathStep")
-    elseif Value == "Sharkman Karate" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuySharkmanKarate", true)
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuySharkmanKarate")
-    elseif Value == "Electric Claw" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyElectricClaw")
-    elseif Value == "Dragon Talon" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyDragonTalon")
-    elseif Value == "God Human" then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyGodhuman")
-    elseif Value == "Sanguine Art" then
-    local args = {
-        [1] = "BuySanguineArt"
-    }
-    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-end
-end)
-
-Tabs.Melee:AddButton({
-    Title = "Buy Race Ghoul",
+    elseif Value == "EQuỷ",
     Description = "Mua Tộc Quỷ",
     Callback = function()
     local a = {
@@ -4890,12 +4710,12 @@ Tabs.Melee:AddButton({
 })
         
 Tabs.Melee:AddButton({
-    Title = "Buy Race Cyrborg",
+    Title = "Mua Tộc Cyborg",
     Description = "Mua Tộc Người Máy",
     Callback = function()
     local a = {
             [1] = "CyborgTrainer",
-            [2] = "Buy"
+            [2] = "Mua"
         }
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(a))
     end    
@@ -4913,8 +4733,8 @@ end
 game.StarterGui:SetCore(
     "SendNotification",
     {
-        Title = "Turbo Lite",
-        Text = "Đã Tải Xong",
+        Title = "MeMayBeoHub",
+        Text = "Done Loading",
         Duration = 1
     })
                                                                               
