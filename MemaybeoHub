@@ -1,4 +1,4 @@
---== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON ==--
+--== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON VÀ THÊM NÚT MỞ/ĐÓNG MENU ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -15,7 +15,7 @@ local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false
+local GUI_CLOSED = false -- Biến này sẽ kiểm soát việc script có chạy hay không (dùng cho CloseBtn)
 
 --== FOV SETUP ==--
 local fovCircle
@@ -33,7 +33,7 @@ do
     end
 end
 
---== ESP SETUP ==--
+--== ESP SETUP (Giữ nguyên) ==--
 local ESPs = {}
 
 local function createESP(plr)
@@ -71,7 +71,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---== CORE FUNCTIONS ==--
+--== CORE FUNCTIONS (Giữ nguyên) ==--
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -109,7 +109,8 @@ end
 --== GUI DEFINITIONS ==--
 local ScreenGui, Frame, TitleBar, InfoLabel1, InfoLabel2
 local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
-local CustomCopyBtn -- Nút mới
+local CustomCopyBtn 
+local ToggleBtn -- Nút mở/đóng menu mới
 local Notification
 
 function showNotification(msg)
@@ -128,20 +129,37 @@ function showNotification(msg)
 end
 
 local function buildGUI()
-    if ScreenGui and ScreenGui.Parent then return end
+    if ScreenGui and ScreenGui.Parent then 
+        if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
+        return 
+    end
 
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "PC_RBLX_GUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.Parent = PlayerGui
 
-    -- Kích thước frame được tăng lên để chứa thêm nút
+    -- 1. NÚT MỞ/ĐÓNG MENU (ToggleBtn)
+    ToggleBtn = Instance.new("TextButton", ScreenGui)
+    ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) -- Góc trên bên trái
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.Font = Enum.Font.SourceSansBold
+    ToggleBtn.TextSize = 20
+    ToggleBtn.Text = "..." -- Hoặc bất kỳ biểu tượng nào
+    
+    local cornerToggle = Instance.new("UICorner", ToggleBtn)
+    cornerToggle.CornerRadius = UDim.new(0, 5) -- Viền bẻ cong
+
+    -- 2. FRAME CHÍNH (Menu)
     Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(0, 240, 0, 380) -- Tăng chiều cao từ 340 lên 380
+    Frame.Size = UDim2.new(0, 240, 0, 380) 
     Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
     Frame.Active = true
     Frame.Draggable = true
+    Frame.Visible = false -- Mặc định ẩn
 
     TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -181,18 +199,18 @@ local function buildGUI()
         return btn
     end
 
-    -- Vị trí cũ: 80, 120, 160, 200, 240, 290
     BtnToggleAimbot = createButton("Aimbot: OFF", 80)
     BtnToggleESP = createButton("ESP: OFF", 120)
     BtnToggleESPLines = createButton("ESP Lines: OFF", 160)
     BtnToggleFOV = createButton("Show FOV: OFF", 200)
     BtnToggleTeamCheck = createButton("Team Check: OFF", 240)
-    CloseBtn = createButton("CLOSE", 290, Color3.fromRGB(150,50,50)) -- Đổi màu nút Close cho dễ nhận biết
-
-    -- NÚT CUSTOM MỚI (Thêm vào sau CloseBtn, cách 40px)
+    CloseBtn = createButton("CLOSE", 290, Color3.fromRGB(150,50,50)) 
+    
+    -- NÚT CUSTOM COPY
     CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 330, Color3.fromRGB(50, 150, 255))
-    CustomCopyBtn.TextSize = 18 -- Tăng cỡ chữ nút custom
+    CustomCopyBtn.TextSize = 18 
 
+    -- 3. NOTIFICATION
     Notification = Instance.new("TextLabel", ScreenGui)
     Notification.Size = UDim2.new(0,200,0,30)
     Notification.Position = UDim2.new(1,-210,1,-40)
@@ -204,12 +222,17 @@ local function buildGUI()
 
     --== EVENT HANDLERS ==--
 
-    -- Nút Custom Copy
+    -- Nút Toggle Menu (Mở/Đóng Frame chính)
+    ToggleBtn.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        Frame.Visible = not Frame.Visible
+    end)
+
+    -- Nút Custom Copy (Giữ nguyên chức năng)
     CustomCopyBtn.MouseButton1Click:Connect(function()
         local textToCopy = "@hoangvanson_9k"
         local copySuccessful = false
 
-        -- Cố gắng setclipboard, nếu thất bại vẫn tiếp tục
         pcall(function()
             setclipboard(textToCopy) 
             copySuccessful = true
@@ -224,7 +247,7 @@ local function buildGUI()
         end
     end)
     
-    -- Các nút Toggle cũ
+    -- Các nút Toggle cũ (Giữ nguyên chức năng)
     BtnToggleAimbot.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         AIMBOT_ENABLED = not AIMBOT_ENABLED
@@ -266,7 +289,7 @@ local function buildGUI()
         GUI_CLOSED = true
 
         if Frame then Frame.Visible = false end
-        if ScreenGui then ScreenGui.Enabled = false end
+        if ScreenGui then ScreenGui.Enabled = false end -- Disable toàn bộ ScreenGui
 
         if fovCircle then fovCircle.Visible = false end
         for _, esp in pairs(ESPs) do
@@ -281,14 +304,18 @@ buildGUI()
 --== INPUT & CHARACTER EVENTS ==--
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed or GUI_CLOSED then return end
-    if input.KeyCode == Enum.KeyCode.E then
+    if GUI_CLOSED then return end
+    
+    -- Phím E (Toggle Aimbot)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
         if BtnToggleAimbot and BtnToggleAimbot.Parent then
             BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
         end
         showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
-    elseif input.KeyCode == Enum.KeyCode.K then
+    
+    -- Phím K (Toggle Menu)
+    elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if Frame then
             Frame.Visible = not Frame.Visible
         else
@@ -311,7 +338,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
---== RENDER LOOP (Không thay đổi) ==--
+--== RENDER LOOP (Giữ nguyên) ==--
 
 RunService.RenderStepped:Connect(function()
     if GUI_CLOSED then
@@ -335,10 +362,6 @@ RunService.RenderStepped:Connect(function()
             
             -- ESP BOX
             if ESP_ENABLED and onScreen then
-                local head = plr.Character:FindFirstChild("Head") 
-                -- Kiểm tra isVisible để tránh vẽ qua tường (Nếu cần, đoạn code gốc của bạn không có isVisible cho ESP)
-                -- if head and isVisible(head) then 
-                
                 local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
                 local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
                 local height = math.abs(topVec.Y - bottomVec.Y)
@@ -347,10 +370,9 @@ RunService.RenderStepped:Connect(function()
                     esp.Box.Size = Vector2.new(height*0.6, height)
                     esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
                     esp.Box.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0) -- Dùng TEAMCHECK_ENABLED
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                     esp.Box.Visible = true
                 end
-                -- end
             else
                 if esp.Box then esp.Box.Visible = false end
             end
@@ -361,7 +383,7 @@ RunService.RenderStepped:Connect(function()
                     esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
                     esp.Line.To = Vector2.new(vec.X, vec.Y)
                     esp.Line.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0) -- Dùng TEAMCHECK_ENABLED
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                     esp.Line.Visible = true
                 end
             else
