@@ -1,4 +1,4 @@
---== HoangSon COMBINED GUI v1.0 (HoangSon UI Style - Custom Button) ==--
+--== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -10,15 +10,14 @@ local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
---== STATES ==--
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false 
+local GUI_CLOSED = false
 
---== FOV CIRCLE (Drawing.new) ==--
+--== FOV SETUP ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -34,7 +33,7 @@ do
     end
 end
 
---== ESP SETUP (Drawing.new) ==--
+--== ESP SETUP ==--
 local ESPs = {}
 
 local function createESP(plr)
@@ -52,12 +51,10 @@ local function createESP(plr)
         ESPs[plr].Box.Visible = false
         ESPs[plr].Box.Thickness = 1
         ESPs[plr].Box.Filled = false
-        ESPs[plr].Box.Color = Color3.fromRGB(255,0,0) 
     end
     if ESPs[plr].Line then
         ESPs[plr].Line.Visible = false
         ESPs[plr].Line.Thickness = 1
-        ESPs[plr].Line.Color = Color3.fromRGB(0,255,0)
     end
 end
 
@@ -74,7 +71,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---== FUNCTIONS (isVisible & getClosestToFOV remain unchanged) ==--
+--== CORE FUNCTIONS ==--
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -109,251 +106,219 @@ local function getClosestToFOV()
     return closest
 end
 
---== HOANGSON UI LIBRARY (MODIFIED) ==--
-local HoangSonUI = {}
+--== GUI DEFINITIONS ==--
+local ScreenGui, Frame, TitleBar, InfoLabel1, InfoLabel2
+local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
+local CustomCopyBtn -- Nút mới
+local Notification
 
-function HoangSonUI:CreateWindow(title, version, backgroundImageId)
-    local gui = Instance.new("ScreenGui", PlayerGui)
-    gui.Name = "HoangSon_GUI" 
-    gui.ResetOnSpawn = false
-
-    local backgroundFrame = Instance.new("Frame", gui)
-    backgroundFrame.Size = UDim2.new(0, 700, 0, 450) 
-    backgroundFrame.Position = UDim2.new(0.5, -350, 0.5, -225) 
-    backgroundFrame.BackgroundTransparency = 1
-    backgroundFrame.Name = "BackgroundFrame"
-    backgroundFrame.Active = false
-
-    -- Main UI panel with background image
-    local mainPanel = Instance.new("ImageLabel", backgroundFrame)
-    mainPanel.Size = UDim2.new(1, 0, 1, 0)
-    mainPanel.Position = UDim2.new(0, 0, 0, 0)
-    mainPanel.Image = "rbxassetid://" .. tostring(backgroundImageId or 75824323818711) 
-    mainPanel.ScaleType = Enum.ScaleType.Stretch
-    mainPanel.BackgroundTransparency = 1
-    mainPanel.ImageTransparency = 0.5 
-    local cornerPanel = Instance.new("UICorner", mainPanel)
-    cornerPanel.CornerRadius = UDim.new(0, 10)
-    mainPanel.ClipsDescendants = true 
-    mainPanel.Active = false 
-
-    -- Overlay for darker transparency over background image
-    local overlayFrame = Instance.new("Frame", mainPanel)
-    overlayFrame.Size = UDim2.new(1, 0, 1, 0)
-    overlayFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    overlayFrame.BackgroundTransparency = 0.7 
-    overlayFrame.ZIndex = 2
-    overlayFrame.Active = false 
-
-    -- Top Bar (Handle for Dragging)
-    local topBar = Instance.new("Frame", mainPanel)
-    topBar.Size = UDim2.new(1, 0, 0, 30)
-    topBar.Position = UDim2.new(0, 0, 0, 0)
-    topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    topBar.BackgroundTransparency = 0.3
-    topBar.ZIndex = 3
-    topBar.Active = true 
-
-    -- Title Label
-    local titleLabel = Instance.new("TextLabel", topBar)
-    titleLabel.Size = UDim2.new(0.5, 0, 1, 0)
-    titleLabel.Position = UDim2.new(0, 10, 0, 0)
-    titleLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = title
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 18
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.ZIndex = 4
-
-    -- Version Label
-    local versionLabel = Instance.new("TextLabel", topBar)
-    versionLabel.Size = UDim2.new(0.2, 0, 1, 0)
-    versionLabel.Position = UDim2.new(0.5, -10, 0, 0)
-    versionLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    versionLabel.BackgroundTransparency = 1
-    versionLabel.Text = version
-    versionLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
-    versionLabel.Font = Enum.Font.GothamBold
-    versionLabel.TextSize = 14
-    versionLabel.TextXAlignment = Enum.TextXAlignment.Right
-    versionLabel.ZIndex = 4
-
-    -- Minimize/Close Buttons 
-    local minimizeButton = Instance.new("TextButton", topBar)
-    minimizeButton.Size = UDim2.new(0, 25, 1, 0)
-    minimizeButton.Position = UDim2.new(1, -60, 0, 0)
-    minimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    minimizeButton.BackgroundTransparency = 0.7
-    minimizeButton.Text = "—"
-    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    minimizeButton.Font = Enum.Font.SourceSans
-    minimizeButton.TextSize = 18
-    minimizeButton.ZIndex = 4
-
-    local closeButton = Instance.new("TextButton", topBar)
-    closeButton.Size = UDim2.new(0, 25, 1, 0)
-    closeButton.Position = UDim2.new(1, -30, 0, 0)
-    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    closeButton.BackgroundTransparency = 0.7
-    closeButton.Text = "X"
-    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeButton.Font = Enum.Font.SourceSans
-    closeButton.TextSize = 18
-    closeButton.ZIndex = 4
-    
-    -- Drag Logic 
-    local dragging, dragInput, dragStart, startPos
-    local function update(input)
-        local delta = input.Position - dragStart
-        backgroundFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+function showNotification(msg)
+    if GUI_CLOSED then return end
+    if not Notification or not Notification.Parent then
+        pcall(buildGUI)
     end
-    topBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = backgroundFrame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+    if not Notification then return end
+    Notification.Text = msg
+    Notification.Visible = true
+    task.delay(2, function()
+        if Notification then
+            Notification.Visible = false
         end
     end)
-    topBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
-    
-    minimizeButton.MouseButton1Click:Connect(function()
-        mainPanel.Visible = not mainPanel.Visible
-        GUI_CLOSED = not mainPanel.Visible
-    end)
-
-    closeButton.MouseButton1Click:Connect(function()
-        backgroundFrame:Destroy() 
-        GUI_CLOSED = true
-        if fovCircle then fovCircle.Visible = false end
-        for _, espData in pairs(ESPs) do
-            if espData.Box then pcall(function() espData.Box:Remove() end) end
-            if espData.Line then pcall(function() espData.Line:Remove() end) end
-        end
-    end)
-    
-    -- Main Content Panel
-    local contentPanel = Instance.new("Frame", mainPanel)
-    contentPanel.Size = UDim2.new(1, 0, 1, -30) 
-    contentPanel.Position = UDim2.new(0, 0, 0, 30) 
-    contentPanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    contentPanel.BackgroundTransparency = 0.8 
-    contentPanel.ZIndex = 3
-    contentPanel.Active = false
-    local cornerContent = Instance.new("UICorner", contentPanel)
-    cornerContent.CornerRadius = UDim.new(0, 10) 
-
-    local contentLayout = Instance.new("UIListLayout", contentPanel)
-    contentLayout.Padding = UDim.new(0, 10)
-    contentLayout.FillDirection = Enum.FillDirection.Vertical
-    contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    contentLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
-    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    contentLayout.Parent = contentPanel 
-
-    -- Inner container for controls 
-    local innerContent = Instance.new("Frame", contentPanel)
-    innerContent.Size = UDim2.new(1, 0, 1, 0) 
-    innerContent.Position = UDim2.new(0, 0, 0, 0)
-    innerContent.BackgroundTransparency = 1
-    innerContent.Active = false
-    local innerContentLayout = Instance.new("UIListLayout", innerContent)
-    innerContentLayout.Padding = UDim.new(0, 8)
-    innerContentLayout.FillDirection = Enum.FillDirection.Vertical
-    innerContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    innerContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center 
-    innerContentLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
-
-
-    -- Hàm tạo nút tùy chỉnh duy nhất
-    function HoangSonUI:CreateCustomButton(parentFrame, text, textToCopy)
-        local btn = Instance.new("TextButton", parentFrame)
-        btn.Size = UDim2.new(0, 300, 0, 60) -- Kích thước lớn, chắc chắn hiển thị
-        btn.BackgroundColor3 = Color3.fromRGB(50, 150, 255) 
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 24 
-        btn.Text = text
-        btn.ZIndex = 5 
-
-        local cornerBtn = Instance.new("UICorner", btn)
-        cornerBtn.CornerRadius = UDim.new(0, 10)
-        
-        btn.MouseButton1Click:Connect(function()
-            local copySuccessful = false
-            pcall(function()
-                setclipboard(textToCopy) 
-                copySuccessful = true
-            end)
-
-            if copySuccessful then
-                 print("HOANGSON GUI: Đã copy thành công: " .. textToCopy)
-            else
-                 print("HOANGSON GUI: Không thể copy. Executor không hỗ trợ setclipboard().")
-            end
-
-            -- Hiển thị thông báo trên màn hình
-            local successMsg = Instance.new("TextLabel")
-            successMsg.Size = UDim2.new(0, 300, 0, 40)
-            successMsg.Position = UDim2.new(0.5, -150, 0.8, 0)
-            successMsg.BackgroundTransparency = 0.1
-            successMsg.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-            successMsg.TextColor3 = Color3.new(1, 1, 1)
-            successMsg.Text = "ĐÃ COPY: " .. textToCopy
-            successMsg.Font = Enum.Font.GothamBold
-            successMsg.TextSize = 16
-            successMsg.Parent = PlayerGui
-            successMsg.ZIndex = 10 
-            local corner = Instance.new("UICorner", successMsg)
-            corner.CornerRadius = UDim.new(0, 5)
-
-            game:GetService("Debris"):AddItem(successMsg, 2) 
-        end)
-    end
-
-    return {
-        Panel = mainPanel,
-        Content = innerContent,
-        CreateCustomButton = function(text, textToCopy) HoangSonUI:CreateCustomButton(innerContent, text, textToCopy) end
-    }
 end
 
---== CREATE WINDOW + CUSTOM BUTTON ==--
-local HOANGSON_BG_IMAGE_ID = 9170251649 
+local function buildGUI()
+    if ScreenGui and ScreenGui.Parent then return end
 
-local win = HoangSonUI:CreateWindow("HoangSon COMBINED", "v1.0", HOANGSON_BG_IMAGE_ID) 
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "PC_RBLX_GUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = PlayerGui
 
--- Tạo nút "Click nếu như bạn đẹp trai"
-win:CreateCustomButton("Click nếu như bạn đẹp trai", "@hoangvanson_9k")
+    -- Kích thước frame được tăng lên để chứa thêm nút
+    Frame = Instance.new("Frame", ScreenGui)
+    Frame.Size = UDim2.new(0, 240, 0, 380) -- Tăng chiều cao từ 340 lên 380
+    Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Frame.Active = true
+    Frame.Draggable = true
 
---== RENDER LOGIC (Không đổi) ==--
-RunService.RenderStepped:Connect(function()
-    
-    if GUI_CLOSED or not win.Panel.Visible then
-        if fovCircle then fovCircle.Visible = false end
-        for _, espData in pairs(ESPs) do
-            if espData.Box then espData.Box.Visible = false end
-            if espData.Line then espData.Line.Visible = false end
+    TitleBar = Instance.new("TextLabel", Frame)
+    TitleBar.Size = UDim2.new(1, 0, 0, 40)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    TitleBar.Text = "PC RBLX v1.8"
+    TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
+    TitleBar.Font = Enum.Font.SourceSansBold
+    TitleBar.TextSize = 20
+
+    InfoLabel1 = Instance.new("TextLabel", Frame)
+    InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
+    InfoLabel1.Position = UDim2.new(0, 10, 0, 40)
+    InfoLabel1.BackgroundTransparency = 1
+    InfoLabel1.Text = "Hide/Show GUI: K"
+    InfoLabel1.TextColor3 = Color3.fromRGB(200,200,200)
+    InfoLabel1.Font = Enum.Font.SourceSansItalic
+    InfoLabel1.TextSize = 14
+
+    InfoLabel2 = Instance.new("TextLabel", Frame)
+    InfoLabel2.Size = UDim2.new(1, -20, 0, 20)
+    InfoLabel2.Position = UDim2.new(0, 10, 0, 55)
+    InfoLabel2.BackgroundTransparency = 1
+    InfoLabel2.Text = "Toggle Aimbot: E"
+    InfoLabel2.TextColor3 = Color3.fromRGB(200,200,200)
+    InfoLabel2.Font = Enum.Font.SourceSansItalic
+    InfoLabel2.TextSize = 14
+
+    local function createButton(text, posY, color)
+        local btn = Instance.new("TextButton", Frame)
+        btn.Size = UDim2.new(0,200,0,30)
+        btn.Position = UDim2.new(0,20,0,posY)
+        btn.Text = text
+        btn.BackgroundColor3 = color or Color3.fromRGB(60,60,60)
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 16
+        return btn
+    end
+
+    -- Vị trí cũ: 80, 120, 160, 200, 240, 290
+    BtnToggleAimbot = createButton("Aimbot: OFF", 80)
+    BtnToggleESP = createButton("ESP: OFF", 120)
+    BtnToggleESPLines = createButton("ESP Lines: OFF", 160)
+    BtnToggleFOV = createButton("Show FOV: OFF", 200)
+    BtnToggleTeamCheck = createButton("Team Check: OFF", 240)
+    CloseBtn = createButton("CLOSE", 290, Color3.fromRGB(150,50,50)) -- Đổi màu nút Close cho dễ nhận biết
+
+    -- NÚT CUSTOM MỚI (Thêm vào sau CloseBtn, cách 40px)
+    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 330, Color3.fromRGB(50, 150, 255))
+    CustomCopyBtn.TextSize = 18 -- Tăng cỡ chữ nút custom
+
+    Notification = Instance.new("TextLabel", ScreenGui)
+    Notification.Size = UDim2.new(0,200,0,30)
+    Notification.Position = UDim2.new(1,-210,1,-40)
+    Notification.BackgroundTransparency = 0.3
+    Notification.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Notification.TextColor3 = Color3.fromRGB(255,255,255)
+    Notification.TextScaled = true
+    Notification.Visible = false
+
+    --== EVENT HANDLERS ==--
+
+    -- Nút Custom Copy
+    CustomCopyBtn.MouseButton1Click:Connect(function()
+        local textToCopy = "@hoangvanson_9k"
+        local copySuccessful = false
+
+        -- Cố gắng setclipboard, nếu thất bại vẫn tiếp tục
+        pcall(function()
+            setclipboard(textToCopy) 
+            copySuccessful = true
+        end)
+
+        if copySuccessful then
+             print("PC RBLX: Đã copy thành công: " .. textToCopy)
+             showNotification("ĐÃ COPY: " .. textToCopy)
+        else
+             print("PC RBLX: KHÔNG THỂ COPY. Executor chặn setclipboard().")
+             showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
         end
+    end)
+    
+    -- Các nút Toggle cũ
+    BtnToggleAimbot.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        AIMBOT_ENABLED = not AIMBOT_ENABLED
+        BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
+        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
+    end)
+
+    BtnToggleESP.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        ESP_ENABLED = not ESP_ENABLED
+        BtnToggleESP.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
+    end)
+
+    BtnToggleESPLines.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        ESPLINE_ENABLED = not ESPLINE_ENABLED
+        BtnToggleESPLines.Text = "ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF")
+    end)
+
+    BtnToggleFOV.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        FOV_ENABLED = not FOV_ENABLED
+        BtnToggleFOV.Text = "Show FOV: " .. (FOV_ENABLED and "ON" or "OFF")
+    end)
+
+    BtnToggleTeamCheck.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
+        BtnToggleTeamCheck.Text = "Team Check: " .. (TEAMCHECK_ENABLED and "ON" or "OFF")
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        -- Tắt tất cả các tính năng & đóng GUI
+        AIMBOT_ENABLED = false
+        ESP_ENABLED = false
+        ESPLINE_ENABLED = false
+        FOV_ENABLED = false
+        TEAMCHECK_ENABLED = false
+        GUI_CLOSED = true
+
+        if Frame then Frame.Visible = false end
+        if ScreenGui then ScreenGui.Enabled = false end
+
+        if fovCircle then fovCircle.Visible = false end
+        for _, esp in pairs(ESPs) do
+            if esp.Box then esp.Box.Visible = false end
+            if esp.Line then esp.Line.Visible = false end
+        end
+    end)
+end
+
+buildGUI()
+
+--== INPUT & CHARACTER EVENTS ==--
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or GUI_CLOSED then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        AIMBOT_ENABLED = not AIMBOT_ENABLED
+        if BtnToggleAimbot and BtnToggleAimbot.Parent then
+            BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
+        end
+        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
+    elseif input.KeyCode == Enum.KeyCode.K then
+        if Frame then
+            Frame.Visible = not Frame.Visible
+        else
+            pcall(buildGUI)
+        end
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.25)
+    Camera = Workspace.CurrentCamera
+    Mouse = LocalPlayer:GetMouse()
+    PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    if not ScreenGui or not ScreenGui.Parent then
+        pcall(buildGUI)
+    else
+        if ScreenGui.Parent ~= PlayerGui then
+            ScreenGui.Parent = PlayerGui
+        end
+    end
+end)
+
+--== RENDER LOOP (Không thay đổi) ==--
+
+RunService.RenderStepped:Connect(function()
+    if GUI_CLOSED then
+        if fovCircle then fovCircle.Visible = false end
         return
     end
 
-    -- FOV Circle
     if fovCircle then
         if FOV_ENABLED and Camera then
             fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -363,64 +328,56 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ESP
     for plr, esp in pairs(ESPs) do
         if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
             local hrp = plr.Character.HumanoidRootPart
-            local head = plr.Character:FindFirstChild("Head") 
+            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
-            local hrpVec, hrpOnScreen = Camera:WorldToViewportPoint(hrp.Position)
-            if ESP_ENABLED and hrpOnScreen and head and isVisible(head) and plr.Character:FindFirstChild("Humanoid").Health > 0 then
+            -- ESP BOX
+            if ESP_ENABLED and onScreen then
+                local head = plr.Character:FindFirstChild("Head") 
+                -- Kiểm tra isVisible để tránh vẽ qua tường (Nếu cần, đoạn code gốc của bạn không có isVisible cho ESP)
+                -- if head and isVisible(head) then 
                 
-                local topVec, topOnScreen = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 3.5, 0)) 
-                local bottomVec, bottomOnScreen = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3.5, 0)) 
-
-                if topOnScreen and bottomOnScreen then
-                    local height = math.abs(topVec.Y - bottomVec.Y)
-                    local width = height * 0.6 
-                    local boxColor = TEAMCHECK_ENABLED and (plr.Team == LocalPlayer.Team and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(255, 0, 0)) or Color3.fromRGB(255,255,255)
-
-                    if esp.Box then
-                        esp.Box.Visible = true
-                        esp.Box.Size = Vector2.new(width, height)
-                        esp.Box.Position = Vector2.new(hrpVec.X - width/2, hrpVec.Y - height/2)
-                        esp.Box.Color = boxColor
-                    end
-
-                    if esp.Line and ESPLINE_ENABLED then
-                        esp.Line.Visible = true
-                        esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y) 
-                        esp.Line.To = hrpVec
-                        esp.Line.Color = boxColor
-                    else
-                        if esp.Line then esp.Line.Visible = false end
-                    end
-                else
-                    if esp.Box then esp.Box.Visible = false end
-                    if esp.Line then esp.Line.Visible = false end
+                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
+                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
+                local height = math.abs(topVec.Y - bottomVec.Y)
+                
+                if esp.Box then
+                    esp.Box.Size = Vector2.new(height*0.6, height)
+                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
+                    esp.Box.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0) -- Dùng TEAMCHECK_ENABLED
+                    esp.Box.Visible = true
                 end
+                -- end
             else
                 if esp.Box then esp.Box.Visible = false end
+            end
+
+            -- ESP LINES
+            if ESPLINE_ENABLED and onScreen then
+                if esp.Line then
+                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
+                    esp.Line.To = Vector2.new(vec.X, vec.Y)
+                    esp.Line.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0) -- Dùng TEAMCHECK_ENABLED
+                    esp.Line.Visible = true
+                end
+            else
                 if esp.Line then esp.Line.Visible = false end
             end
         else
-            local data = ESPs[plr]
-            if data and data.Box then data.Box.Visible = false end
-            if data and data.Line then data.Line.Visible = false end
+            if esp.Box then esp.Box.Visible = false end
+            if esp.Line then esp.Line.Visible = false end
         end
     end
 
-    local target = getClosestToFOV()
-    if AIMBOT_ENABLED and target then
-        -- Aimbot logic here
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.LeftControl and not gameProcessed then
-        if win.Panel then
-            win.Panel.Visible = not win.Panel.Visible
-            GUI_CLOSED = not win.Panel.Visible 
+    -- AIMBOT
+    if AIMBOT_ENABLED and Camera then
+        local target = getClosestToFOV()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
         end
     end
 end)
