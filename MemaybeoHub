@@ -1,4 +1,4 @@
---== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE (FINAL) - THÊM WALKSPEED ==--
+--== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE (FINAL) - ID ẢNH MỚI ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -17,8 +17,8 @@ local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
 local GUI_CLOSED = false 
 
-local CURRENT_WALKSPEED = 16 -- Tốc độ mặc định của Roblox
-local MAX_WALKSPEED = 100 -- Tốc độ tối đa cho phép chỉnh
+local CURRENT_WALKSPEED = 16 
+local MAX_WALKSPEED = 100 
 local DEFAULT_WALKSPEED_SETTING = 16
 
 --== FOV SETUP (Giữ nguyên) ==--
@@ -80,7 +80,7 @@ local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
     local dir = (part.Position - origin)
-    if dir.Magnitude == 0 then return true end
+    if dir.Magnitude == 0 then true end
     local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
     local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
     return hit and hit:IsDescendantOf(part.Parent)
@@ -110,7 +110,6 @@ local function getClosestToFOV()
     return closest
 end
 
--- Hàm cập nhật WalkSpeed
 local function updateWalkspeed(speed)
     CURRENT_WALKSPEED = speed
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
@@ -176,22 +175,23 @@ local function buildGUI()
     MainFrame.Draggable = true
     MainFrame.Visible = false 
 
+    -- *** THAY FRAME BẰNG IMAGE LABEL VỚI ID MỚI: 75824323818711 ***
     local BackgroundImage = Instance.new("ImageLabel", MainFrame)
     BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
-    BackgroundImage.Image = "rbxassetid://9170251649" 
+    BackgroundImage.Image = "rbxassetid://75824323818711" -- ID ẢNH MỚI ĐƯỢC CUNG CẤP
     BackgroundImage.ScaleType = Enum.ScaleType.Stretch
-    BackgroundImage.ImageTransparency = 0.5
+    BackgroundImage.ImageTransparency = 0.5 -- Độ trong suốt của hình ảnh
     BackgroundImage.BackgroundTransparency = 1
     local UICornerMain = Instance.new("UICorner", BackgroundImage)
     UICornerMain.CornerRadius = UDim.new(0, 10)
 
-    local BackgroundOverlay = Instance.new("Frame", BackgroundImage)
+    local BackgroundOverlay = Instance.new("Frame", BackgroundImage) -- Lớp phủ tối mờ
     BackgroundOverlay.Size = UDim2.new(1, 0, 1, 0)
     BackgroundOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     BackgroundOverlay.BackgroundTransparency = 0.7 
     
     -- 2. TOP BAR (Thanh tiêu đề)
-    TopBar = Instance.new("Frame", BackgroundImage)
+    TopBar = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
     TopBar.Size = UDim2.new(1, 0, 0, 40)
     TopBar.Position = UDim2.new(0, 0, 0, 0)
     TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -203,6 +203,7 @@ local function buildGUI()
     TopIcon.Position = UDim2.new(0, 5, 0, 0)
     TopIcon.BackgroundTransparency = 1
     TopIcon.Text = "" 
+    TopIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
     TopIcon.Font = Enum.Font.SourceSans
     TopIcon.TextSize = 24
     
@@ -239,7 +240,7 @@ local function buildGUI()
     CloseBtn.ZIndex = 3
 
     -- 3. TAB MENU (Bên trái)
-    MainTab = Instance.new("Frame", BackgroundImage)
+    MainTab = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
     MainTab.Size = UDim2.new(0, MAIN_TAB_WIDTH, 1, -40)
     MainTab.Position = UDim2.new(0, 0, 0, 40)
     MainTab.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -265,7 +266,7 @@ local function buildGUI()
     TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 
     -- 4. CONTENT FRAME (Bên phải)
-    local ContentFrame = Instance.new("Frame", BackgroundImage)
+    local ContentFrame = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
     ContentFrame.Size = UDim2.new(1, -MAIN_TAB_WIDTH, 1, -40)
     ContentFrame.Position = UDim2.new(0, MAIN_TAB_WIDTH, 0, 40)
     ContentFrame.BackgroundTransparency = 1
@@ -365,7 +366,7 @@ local function buildGUI()
     
     local function createSlider(text, initialValue, minValue, maxValue, updateFunction, parent)
         local frame = Instance.new("Frame", parent)
-        frame.Size = UDim2.new(1, -20, 0, 50) -- Chiều cao lớn hơn cho slider
+        frame.Size = UDim2.new(1, -20, 0, 50) 
         frame.Position = UDim2.new(0, 10, 0, 0)
         frame.BackgroundTransparency = 1
         
@@ -407,11 +408,10 @@ local function buildGUI()
         local SliderHandle = Instance.new("ImageButton", SliderBg)
         SliderHandle.Size = UDim2.new(0, 15, 0, 15)
         SliderHandle.BackgroundTransparency = 1
-        SliderHandle.Image = "rbxassetid://603417772" -- Hình tròn trắng
+        SliderHandle.Image = "rbxassetid://603417772" 
         SliderHandle.ImageColor3 = Color3.fromRGB(255, 255, 255)
         SliderHandle.ZIndex = 2
         
-        -- Tính toán vị trí Handle dựa trên fillRatio
         local handlePos = UDim2.new(fillRatio, -SliderHandle.Size.Offset.X * fillRatio, 0.5, -SliderHandle.Size.Offset.Y/2)
         SliderHandle.Position = handlePos
         
@@ -443,7 +443,7 @@ local function buildGUI()
             end
         end)
         
-        return ValueLabel -- Trả về ValueLabel để cập nhật sau
+        return ValueLabel 
     end
 
 
