@@ -1,112 +1,246 @@
--- Roblox Fix Lag Script with GUI
--- Features:
--- 1. Toggle button GUI
--- 2. Ultra Low Graphics mode
--- 3. Color-preserved Low Effects mode
--- 4. Auto Quality adjust by FPS
-
--- NOTE: Paste this into a LocalScript in StarterPlayerScripts
-
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
-local player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
--- Create ScreenGui
-local gui = Instance.new("ScreenGui")
-gui.Parent = player:WaitForChild("PlayerGui")
-gui.ResetOnSpawn = false
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Create Toggle Button
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0,140,0,50)
-button.Position = UDim2.new(0.05,0,0.35,0)
-button.Text = "Fix Lag: OFF"
-button.BackgroundColor3 = Color3.fromRGB(30,30,30)
-button.TextColor3 = Color3.fromRGB(255,255,255)
-button.Parent = gui
-button.Active = true
+--== STATES ==--
+local AIMBOT_ENABLED = false
+local ESP_ENABLED = false
+local ESPLINE_ENABLED = false
+local FOV_ENABLED = false
+local TEAMCHECK_ENABLED = false
+local GUI_CLOSED = false
 
-local mode = 0 -- 0 = off, 1 = ultra, 2 = color-lowFX
-local autoAdjust = true
+--== FOV CIRCLE ==--
+local fovCircle
+do
+    local success, circle = pcall(function() return Drawing.new("Circle") end)
+    if success and circle then
+        fovCircle = circle
+        fovCircle.Visible = false
+        fovCircle.Radius = 90
+        fovCircle.Thickness = 2
+        fovCircle.Color = Color3.fromRGB(255,255,255)
+        fovCircle.Filled = false
+    else
+        fovCircle = nil
+    end
+end
 
--- Functions
-local function ultraLow()
-    local s = settings().Rendering
-    s.QualityLevel = Enum.QualityLevel.Level01
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 50
-    for _,v in pairs(workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
-            v.Enabled = false
+--== ESP SETUP ==--
+local ESPs = {}
+
+local function createESP(plr)
+    if not plr or plr == LocalPlayer then return end
+    if ESPs[plr] then return end
+
+    local successBox, box = pcall(function() return Drawing.new("Square") end)
+    local successLine, line = pcall(function() return Drawing.new("Line") end)
+    ESPs[plr] = {
+        Box = successBox and box or nil,
+        Line = successLine and line or nil
+    }
+
+    if ESPs[plr].Box then
+        ESPs[plr].Box.Visible = false
+        ESPs[plr].Box.Thickness = 1
+        ESPs[plr].Box.Filled = false
+    end
+    if ESPs[plr].Line then
+        ESPs[plr].Line.Visible = false
+        ESPs[plr].Line.Thickness = 1
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    createESP(p)
+end
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(function(plr)
+    local data = ESPs[plr]
+    if data then
+        if data.Box then pcall(function() data.Box:Remove() end) end
+        if data.Line then pcall(function() data.Line:Remove() end) end
+        ESPs[plr] = nil
+    end
+end)
+
+--== FUNCTIONS ==--
+local function isVisible(part)
+    if not part then return false end
+    local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
+    local dir = (part.Position - origin)
+    if dir.Magnitude == 0 then return true end
+    local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
+    local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
+    return hit and hit:IsDescendantOf(part.Parent)
+end
+
+local function getClosestToFOV()
+    if not AIMBOT_ENABLED then return nil end
+    local closest, dist = nil, math.huge
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+                continue
+            end
+            local head = plr.Character.Head
+            local vec, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if mag < (fovCircle and fovCircle.Radius or 90) and mag < dist then
+                    if isVisible(head) then
+                        closest = head
+                        dist = mag
+                    end
+                end
+            end
         end
     end
+    return closest
 end
 
-local function colorLowFX()
-    local s = settings().Rendering
-    s.QualityLevel = Enum.QualityLevel.Level02
-    Lighting.GlobalShadows = false
-    for _,v in pairs(workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") then v.Rate = v.Rate * 0.3 end
+--== UI LIBRARY ==--
+local Library = {}
+function Library:CreateWindow(title, image)
+    local gui = Instance.new("ScreenGui", PlayerGui)
+    gui.ResetOnSpawn = false
+
+    -- Background image
+    local bg = Instance.new("ImageLabel", gui)
+    bg.Size = UDim2.new(0, 260, 0, 350)
+    bg.Position = UDim2.new(0.07, 0, 0.2, 0)
+    bg.Image = image or "" -- rbxassetid://75824323818711
+    bg.ScaleType = Enum.ScaleType.Stretch
+    bg.BackgroundTransparency = 1
+    local cornerBG = Instance.new("UICorner", bg)
+    cornerBG.CornerRadius = UDim.new(0, 15)
+
+    local window = Instance.new("Frame", bg)
+    window.Size = UDim2.new(1, -20, 1, -20)
+    window.Position = UDim2.new(0, 10, 0, 10)
+    window.BackgroundTransparency = 0.4
+    window.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    local cornerWin = Instance.new("UICorner", window)
+    cornerWin.CornerRadius = UDim.new(0, 15)
+
+    local top = Instance.new("TextLabel", window)
+    top.Size = UDim2.new(1, 0, 0, 40)
+    top.BackgroundTransparency = 1
+    top.Text = title
+    top.TextColor3 = Color3.fromRGB(255,255,255)
+    top.Font = Enum.Font.GothamBold
+    top.TextSize = 20
+
+    local inside = Instance.new("Frame", window)
+    inside.Size = UDim2.new(1, 0, 1, -45)
+    inside.Position = UDim2.new(0, 0, 0, 45)
+    inside.BackgroundTransparency = 1
+
+    local layout = Instance.new("UIListLayout", inside)
+    layout.Padding = UDim.new(0, 8)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    function Library:CreateToggle(name, callback)
+        local btn = Instance.new("TextButton", inside)
+        btn.Size = UDim2.new(1, -20, 0, 35)
+        btn.Position = UDim2.new(0, 10, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 16
+        btn.Text = name .. ": OFF"
+
+        local cornerBtn = Instance.new("UICorner", btn)
+        cornerBtn.CornerRadius = UDim.new(0, 10)
+
+        local state = false
+        btn.MouseButton1Click:Connect(function()
+            state = not state
+            btn.Text = name .. ": " .. (state and "ON" or "OFF")
+            callback(state)
+        end)
     end
+
+    return Library
 end
 
-local function restore()
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-    Lighting.GlobalShadows = true
-end
+--== CREATE WINDOW + TOGGLES ==--
+local win = Library:CreateWindow("PC RBLX COMBINED", "rbxassetid://75824323818711")
 
--- Auto FPS Adjust
-local fps = 60
-RunService.RenderStepped:Connect(function(dt)
-    fps = 1/dt
-    if autoAdjust then
-        if fps < 35 then
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        elseif fps > 55 then
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level05
+win:CreateToggle("Aimbot", function(v) AIMBOT_ENABLED = v end)
+win:CreateToggle("ESP", function(v) ESP_ENABLED = v end)
+win:CreateToggle("ESP Lines", function(v) ESPLINE_ENABLED = v end)
+win:CreateToggle("Show FOV", function(v) FOV_ENABLED = v end)
+win:CreateToggle("Team Check", function(v) TEAMCHECK_ENABLED = v end)
+
+--== RENDER LOGIC ==--
+RunService.RenderStepped:Connect(function()
+    if GUI_CLOSED then
+        if fovCircle then fovCircle.Visible = false end
+        return
+    end
+
+    -- FOV Circle
+    if fovCircle then
+        if FOV_ENABLED and Camera then
+            fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            fovCircle.Visible = true
+        else
+            fovCircle.Visible = false
+        end
+    end
+
+    -- ESP
+    for plr, esp in pairs(ESPs) do
+        if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
+            local hrp = plr.Character.HumanoidRootPart
+            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            if ESP_ENABLED and onScreen then
+                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
+                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
+                local height = math.abs(topVec.Y - bottomVec.Y)
+                if esp.Box then
+                    esp.Box.Size = Vector2.new(height*0.6, height)
+                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
+                    esp.Box.Color = (plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                    esp.Box.Visible = true
+                end
+            else
+                if esp.Box then esp.Box.Visible = false end
+            end
+
+            if ESPLINE_ENABLED and onScreen then
+                if esp.Line then
+                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
+                    esp.Line.To = Vector2.new(vec.X, vec.Y)
+                    esp.Line.Color = (plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                    esp.Line.Visible = true
+                end
+            else
+                if esp.Line then esp.Line.Visible = false end
+            end
+        else
+            if esp.Box then esp.Box.Visible = false end
+            if esp.Line then esp.Line.Visible = false end
+        end
+    end
+
+    -- Aimbot
+    if AIMBOT_ENABLED and Camera then
+        local target = getClosestToFOV()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
         end
     end
 end)
 
--- Button Click
-button.MouseButton1Click:Connect(function()
-    mode = mode + 1
-    if mode > 2 then
-        mode = 0
-        restore()
-        button.Text = "Fix Lag: OFF"
-        button.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    elseif mode == 1 then
-        ultraLow()
-        button.Text = "Ultra Low"
-        button.BackgroundColor3 = Color3.fromRGB(120,40,40)
-    elseif mode == 2 then
-        colorLowFX()
-        button.Text = "LowFX Colors"
-        button.BackgroundColor3 = Color3.fromRGB(40,120,40)
-    end
-end)
-
-print("Fix Lag Script Loaded!")
-
--- ICON BUTTON
-local icon = Instance.new("ImageLabel", toggleButton)
-icon.Size = UDim2.new(0, 20, 0, 20)
-icon.Position = UDim2.new(0, 5, 0.5, -10)
-icon.BackgroundTransparency = 1
-icon.Image = "rbxassetid://102408429268015"
-
---===[ TÁC GIẢ / AUTHOR ]===--
-local authorLabel = Instance.new("TextLabel", mainFrame)
-authorLabel.Size = UDim2.new(1, -20, 0, 20)
-authorLabel.Position = UDim2.new(0, 10, 1, -25)
-authorLabel.BackgroundTransparency = 1
-authorLabel.Text = "@hoangvanson_9k"
-authorLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-authorLabel.Font = Enum.Font.GothamSemibold
-authorLabel.TextSize = 14
-authorLabel.TextXAlignment = Enum.TextXAlignment.Center
-
+print(">> BẢN AIM CỦA ANH SƠN DZ ĐÃ LOAD XONG")
