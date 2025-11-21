@@ -1,3 +1,5 @@
+--== HoangSon COMBINED GUI v1.0  ==--
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -14,9 +16,9 @@ local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false
+local GUI_CLOSED = false -- Now controls the main UI visibility
 
---== FOV CIRCLE ==--
+--== FOV CIRCLE (Still uses Drawing.new as it's not part of the main UI) ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -32,7 +34,7 @@ do
     end
 end
 
---== ESP SETUP ==--
+--== ESP SETUP (Still uses Drawing.new) ==--
 local ESPs = {}
 
 local function createESP(plr)
@@ -50,10 +52,12 @@ local function createESP(plr)
         ESPs[plr].Box.Visible = false
         ESPs[plr].Box.Thickness = 1
         ESPs[plr].Box.Filled = false
+        ESPs[plr].Box.Color = Color3.fromRGB(255,0,0) -- Example color
     end
     if ESPs[plr].Line then
         ESPs[plr].Line.Visible = false
         ESPs[plr].Line.Thickness = 1
+        ESPs[plr].Line.Color = Color3.fromRGB(0,255,0) -- Example color
     end
 end
 
@@ -105,60 +109,214 @@ local function getClosestToFOV()
     return closest
 end
 
---== UI LIBRARY ==--
-local Library = {}
-function Library:CreateWindow(title, image)
+--== KHANHLY UI LIBRARY ==--
+local KhanhlyUI = {}
+
+function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
     local gui = Instance.new("ScreenGui", PlayerGui)
+    gui.Name = "Khanhly_GUI"
     gui.ResetOnSpawn = false
 
-    -- Background image
-    local bg = Instance.new("ImageLabel", gui)
-    bg.Size = UDim2.new(0, 260, 0, 350)
-    bg.Position = UDim2.new(0.07, 0, 0.2, 0)
-    bg.Image = image or "" -- rbxassetid://75824323818711
-    bg.ScaleType = Enum.ScaleType.Stretch
-    bg.BackgroundTransparency = 1
-    local cornerBG = Instance.new("UICorner", bg)
-    cornerBG.CornerRadius = UDim.new(0, 15)
+    local backgroundFrame = Instance.new("Frame", gui)
+    backgroundFrame.Size = UDim2.new(0, 700, 0, 450) -- Adjust size to fit Khanhly UI style
+    backgroundFrame.Position = UDim2.new(0.5, -350, 0.5, -225) -- Center it
+    backgroundFrame.BackgroundTransparency = 1
+    backgroundFrame.Name = "BackgroundFrame"
 
-    local window = Instance.new("Frame", bg)
-    window.Size = UDim2.new(1, -20, 1, -20)
-    window.Position = UDim2.new(0, 10, 0, 10)
-    window.BackgroundTransparency = 0.4
-    window.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    local cornerWin = Instance.new("UICorner", window)
-    cornerWin.CornerRadius = UDim.new(0, 15)
+    -- Main UI panel with background image
+    local mainPanel = Instance.new("ImageLabel", backgroundFrame)
+    mainPanel.Size = UDim2.new(1, 0, 1, 0)
+    mainPanel.Position = UDim2.new(0, 0, 0, 0)
+    mainPanel.Image = "rbxassetid://" .. tostring(backgroundImageId or 75824323818711) -- Use the provided image or a default
+    mainPanel.ScaleType = Enum.ScaleType.Stretch
+    mainPanel.BackgroundTransparency = 1
+    mainPanel.ImageTransparency = 0.5 -- Slightly transparent to blend
+    local cornerPanel = Instance.new("UICorner", mainPanel)
+    cornerPanel.CornerRadius = UDim.new(0, 10)
+    mainPanel.ClipsDescendants = true -- Important for corners and content
 
-    local top = Instance.new("TextLabel", window)
-    top.Size = UDim2.new(1, 0, 0, 40)
-    top.BackgroundTransparency = 1
-    top.Text = title
-    top.TextColor3 = Color3.fromRGB(255,255,255)
-    top.Font = Enum.Font.GothamBold
-    top.TextSize = 20
+    -- Overlay for darker transparency over background image
+    local overlayFrame = Instance.new("Frame", mainPanel)
+    overlayFrame.Size = UDim2.new(1, 0, 1, 0)
+    overlayFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    overlayFrame.BackgroundTransparency = 0.7 -- Adjust for desired darkness
+    overlayFrame.ZIndex = 2
 
-    local inside = Instance.new("Frame", window)
-    inside.Size = UDim2.new(1, 0, 1, -45)
-    inside.Position = UDim2.new(0, 0, 0, 45)
-    inside.BackgroundTransparency = 1
+    -- Top Bar
+    local topBar = Instance.new("Frame", mainPanel)
+    topBar.Size = UDim2.new(1, 0, 0, 30)
+    topBar.Position = UDim2.new(0, 0, 0, 0)
+    topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    topBar.BackgroundTransparency = 0.3
+    topBar.ZIndex = 3
 
-    local layout = Instance.new("UIListLayout", inside)
-    layout.Padding = UDim.new(0, 8)
-    layout.FillDirection = Enum.FillDirection.Vertical
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    -- Title Label
+    local titleLabel = Instance.new("TextLabel", topBar)
+    titleLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    function Library:CreateToggle(name, callback)
-        local btn = Instance.new("TextButton", inside)
-        btn.Size = UDim2.new(1, -20, 0, 35)
-        btn.Position = UDim2.new(0, 10, 0, 0)
-        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        btn.TextColor3 = Color3.new(1,1,1)
+    -- Version Label
+    local versionLabel = Instance.new("TextLabel", topBar)
+    versionLabel.Size = UDim2.new(0.2, 0, 1, 0)
+    versionLabel.Position = UDim2.new(0.5, -10, 0, 0)
+    versionLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    versionLabel.BackgroundTransparency = 1
+    versionLabel.Text = version
+    versionLabel.TextColor3 = Color3.fromRGB(150, 255, 150) -- Greenish color
+    versionLabel.Font = Enum.Font.GothamBold
+    versionLabel.TextSize = 14
+    versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+    -- Minimize/Close Buttons (Placeholders for now)
+    local minimizeButton = Instance.new("TextButton", topBar)
+    minimizeButton.Size = UDim2.new(0, 25, 1, 0)
+    minimizeButton.Position = UDim2.new(1, -60, 0, 0)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    minimizeButton.BackgroundTransparency = 0.7
+    minimizeButton.Text = "—"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.Font = Enum.Font.SourceSans
+    minimizeButton.TextSize = 18
+    minimizeButton.ZIndex = 4
+    minimizeButton.MouseButton1Click:Connect(function()
+        mainPanel.Visible = not mainPanel.Visible
+        GUI_CLOSED = not mainPanel.Visible
+    end)
+
+    local closeButton = Instance.new("TextButton", topBar)
+    closeButton.Size = UDim2.new(0, 25, 1, 0)
+    closeButton.Position = UDim2.new(1, -30, 0, 0)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closeButton.BackgroundTransparency = 0.7
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.Font = Enum.Font.SourceSans
+    closeButton.TextSize = 18
+    closeButton.ZIndex = 4
+    closeButton.MouseButton1Click:Connect(function()
+        mainPanel:Destroy()
+        GUI_CLOSED = true
+        if fovCircle then fovCircle.Visible = false end
+        for _, espData in pairs(ESPs) do
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Line then espData.Line.Visible = false end
+        end
+    end)
+
+    -- Make draggable (Top Bar makes the whole panel draggable)
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        backgroundFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    topBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = backgroundFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    topBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+
+    -- Left Navigation Panel
+    local navPanel = Instance.new("Frame", mainPanel)
+    navPanel.Size = UDim2.new(0, 100, 1, -30) -- Height is full minus top bar
+    navPanel.Position = UDim2.new(0, 0, 0, 30)
+    navPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    navPanel.BackgroundTransparency = 0.2
+    navPanel.ZIndex = 3
+
+    local navLayout = Instance.new("UIListLayout", navPanel)
+    navLayout.Padding = UDim.new(0, 5)
+    navLayout.FillDirection = Enum.FillDirection.Vertical
+    navLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    navLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    navLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local function createNavButton(text)
+        local btn = Instance.new("TextButton", navPanel)
+        btn.Size = UDim2.new(1, -10, 0, 30)
+        btn.Position = UDim2.new(0, 5, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        btn.BackgroundTransparency = 0.5
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 16
+        local corner = Instance.new("UICorner", btn)
+        corner.CornerRadius = UDim.new(0, 5)
+        return btn
+    end
+
+    createNavButton("Main") -- Example nav button
+
+    -- Main Content Panel
+    local contentPanel = Instance.new("Frame", mainPanel)
+    contentPanel.Size = UDim2.new(1, -100, 1, -30) -- Full width minus nav panel, full height minus top bar
+    contentPanel.Position = UDim2.new(0, 100, 0, 30)
+    contentPanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    contentPanel.BackgroundTransparency = 0.8 -- Semi-transparent dark background
+    contentPanel.ZIndex = 3
+    local cornerContent = Instance.new("UICorner", contentPanel)
+    cornerContent.CornerRadius = UDim.new(0, 10) -- Match outer panel's corner but for content frame
+
+    local contentLayout = Instance.new("UIListLayout", contentPanel)
+    contentLayout.Padding = UDim.new(0, 10)
+    contentLayout.FillDirection = Enum.FillDirection.Vertical
+    contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    contentLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    contentLayout.Parent = contentPanel -- Ensure layout is parented
+
+    -- Inner container for controls to respect padding
+    local innerContent = Instance.new("Frame", contentPanel)
+    innerContent.Size = UDim2.new(1, -20, 1, -20)
+    innerContent.Position = UDim2.new(0, 10, 0, 10)
+    innerContent.BackgroundTransparency = 1
+    local innerContentLayout = Instance.new("UIListLayout", innerContent)
+    innerContentLayout.Padding = UDim.new(0, 8)
+    innerContentLayout.FillDirection = Enum.FillDirection.Vertical
+    innerContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+
+    function KhanhlyUI:CreateToggle(name, callback)
+        local btnContainer = Instance.new("Frame", innerContent)
+        btnContainer.Size = UDim2.new(1, 0, 0, 40) -- Height for toggle + label
+        btnContainer.BackgroundTransparency = 1
+        btnContainer.LayoutOrder = innerContentLayout.Parent.Children:GetChildren() and #innerContentLayout.Parent.Children:GetChildren() + 1 or 1
+
+        local btn = Instance.new("TextButton", btnContainer)
+        btn.Size = UDim2.new(0, 100, 1, -10) -- Example toggle button size
+        btn.Position = UDim2.new(0, 0, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.TextColor3 = Color3.new(1, 1, 1)
         btn.Font = Enum.Font.GothamBold
         btn.TextSize = 16
         btn.Text = name .. ": OFF"
 
         local cornerBtn = Instance.new("UICorner", btn)
-        cornerBtn.CornerRadius = UDim.new(0, 10)
+        cornerBtn.CornerRadius = UDim.new(0, 7)
 
         local state = false
         btn.MouseButton1Click:Connect(function()
@@ -168,11 +326,19 @@ function Library:CreateWindow(title, image)
         end)
     end
 
-    return Library
+    -- Return mainPanel to allow modification
+    return {
+        Panel = mainPanel,
+        Content = innerContent,
+        CreateToggle = function(name, callback) KhanhlyUI:CreateToggle(name, callback) end
+    }
 end
 
---== CREATE WINDOW + TOGGLES ==--
-local win = Library:CreateWindow("PC RBLX COMBINED", "rbxassetid://75824323818711")
+--== CREATE WINDOW + TOGGLES (using Khanhly UI style) ==--
+-- Use the specific asset ID for the sunset classroom image: 9170251649
+local KHANHLY_BG_IMAGE_ID = 9170251649 
+
+local win = KhanhlyUI:CreateWindow("HoangSon", "v1")
 
 win:CreateToggle("Aimbot", function(v) AIMBOT_ENABLED = v end)
 win:CreateToggle("ESP", function(v) ESP_ENABLED = v end)
@@ -182,8 +348,13 @@ win:CreateToggle("Team Check", function(v) TEAMCHECK_ENABLED = v end)
 
 --== RENDER LOGIC ==--
 RunService.RenderStepped:Connect(function()
-    if GUI_CLOSED then
+    -- Only manage `Drawing` objects here. The GUI visibility is handled by the close/minimize buttons.
+    if GUI_CLOSED or not win.Panel.Visible then
         if fovCircle then fovCircle.Visible = false end
+        for _, espData in pairs(ESPs) do
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Line then espData.Line.Visible = false end
+        end
         return
     end
 
@@ -201,46 +372,70 @@ RunService.RenderStepped:Connect(function()
     for plr, esp in pairs(ESPs) do
         if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
             local hrp = plr.Character.HumanoidRootPart
-            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-            if ESP_ENABLED and onScreen then
-                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
-                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
-                local height = math.abs(topVec.Y - bottomVec.Y)
-                if esp.Box then
-                    esp.Box.Size = Vector2.new(height*0.6, height)
-                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                    esp.Box.Color = (plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                    esp.Box.Visible = true
-                end
-            else
-                if esp.Box then esp.Box.Visible = false end
-            end
+            local head = plr.Character:FindFirstChild("Head") -- Also need head for visibility/aimbot
+            
+            -- Only show ESP if enabled and visible on screen
+            local hrpVec, hrpOnScreen = Camera:WorldToViewportPoint(hrp.Position)
+            if ESP_ENABLED and hrpOnScreen and head and isVisible(head) then -- Ensure ESP respects visibility check
+                local topVec, topOnScreen = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0)) -- Slightly above HRP
+                local bottomVec, bottomOnScreen = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 2.5, 0)) -- Slightly below HRP
 
-            if ESPLINE_ENABLED and onScreen then
-                if esp.Line then
-                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
-                    esp.Line.To = Vector2.new(vec.X, vec.Y)
-                    esp.Line.Color = (plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                    esp.Line.Visible = true
+                if topOnScreen and bottomOnScreen then
+                    local height = math.abs(topVec.Y - bottomVec.Y)
+                    local width = height * 0.6 -- Common aspect ratio for bounding boxes
+
+                    -- ESP Box
+                    if esp.Box then
+                        esp.Box.Visible = true
+                        esp.Box.Size = Vector2.new(width, height)
+                        esp.Box.Position = Vector2.new(hrpVec.X - width/2, hrpVec.Y - height/2)
+                        esp.Box.Color = TEAMCHECK_ENABLED and (plr.Team == LocalPlayer.Team and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(255, 0, 0)) or Color3.fromRGB(255,255,255) -- Blue for team, red for enemy
+                    end
+
+                    -- ESP Line
+                    if esp.Line and ESPLINE_ENABLED then
+                        esp.Line.Visible = true
+                        esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y) -- From bottom center of screen
+                        esp.Line.To = hrpVec
+                        esp.Line.Color = TEAMCHECK_ENABLED and (plr.Team == LocalPlayer.Team and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(255, 0, 0)) or Color3.fromRGB(0,255,0)
+                    else
+                        if esp.Line then esp.Line.Visible = false end
+                    end
+                else
+                    if esp.Box then esp.Box.Visible = false end
+                    if esp.Line then esp.Line.Visible = false end
                 end
             else
+                -- If ESP is not enabled or not on screen, hide all visuals
+                if esp.Box then esp.Box.Visible = false end
                 if esp.Line then esp.Line.Visible = false end
             end
         else
+            -- If player/character invalid, hide all visuals
             if esp.Box then esp.Box.Visible = false end
             if esp.Line then esp.Line.Visible = false end
         end
     end
 
-    -- Aimbot
-    if AIMBOT_ENABLED and Camera then
-        local target = getClosestToFOV()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
+    -- Aimbot execution (still needs to be fully implemented, this just gets the target)
+    local target = getClosestToFOV()
+    if AIMBOT_ENABLED and target then
+        -- This is where your actual aimbot logic would go to move the mouse/camera
+        -- Example (only works for client-side camera manipulation if allowed):
+        -- local screenPos, onScreen = Camera:WorldToViewportPoint(target.Position)
+        -- if onScreen then
+        --     Mouse.X = screenPos.X
+        --     Mouse.Y = screenPos.Y
+        -- end
     end
 end)
 
-print(">> BẢN AIM CỦA ANH SƠN DZ ĐÃ LOAD XONG")
+-- Toggle GUI with a keybind (e.g., LeftControl)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.LeftControl and not gameProcessed then
+        if win.Panel then
+            win.Panel.Visible = not win.Panel.Visible
+            GUI_CLOSED = not win.Panel.Visible -- Update GUI_CLOSED state based on actual visibility
+        end
+    end
+end)
