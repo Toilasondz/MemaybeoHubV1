@@ -1,47 +1,108 @@
--- ExampleLocal (LocalScript)
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SimpleUI_Module = ReplicatedStorage:WaitForChild("SimpleUI")
-local SimpleUI = require(SimpleUI_Module)
+-- NEW SIMPLE UI (LocalScript)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
 
-local ui = SimpleUI.new({title = "MyDevMenu"})
+-- Create ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "SimpleMenu"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Tab 1
-local tab1 = ui:AddTab("Main")
-tab1:AddLabel("Main features")
-tab1:AddButton("Say Hello", function()
-    print("Hello from UI Button!")
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "SimpleUI";
-        Text = "Hello pressed!";
-        Duration = 2;
-    })
+-- Main Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 350, 0, 250)
+frame.Position = UDim2.new(0.5, -175, 0.5, -125)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Visible = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 10)
+
+-- Draggable
+frame.Active = true
+frame.Draggable = true
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "Simple UI"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextSize = 18
+
+-- Button
+local button = Instance.new("TextButton", frame)
+button.Size = UDim2.new(1, -20, 0, 40)
+button.Position = UDim2.new(0, 10, 0, 40)
+button.Text = "Click Me"
+button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+button.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", button)
+
+button.MouseButton1Click:Connect(function()
+	print("Button clicked!")
 end)
 
-local togg = tab1:AddToggle("Auto Do Thing", false, function(state)
-    print("Toggle state:", state)
-    -- do something in your game (client-side)
+-- Toggle
+local toggleState = false
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 90)
+toggle.Text = "Toggle: OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+toggle.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggle)
+
+toggle.MouseButton1Click:Connect(function()
+	toggleState = not toggleState
+	if toggleState then
+		toggle.Text = "Toggle: ON"
+		toggle.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+	else
+		toggle.Text = "Toggle: OFF"
+		toggle.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+	end
 end)
 
-local slider = tab1:AddSlider("Speed Multiplier", 1, 20, 1, function(val)
-    -- Example: change walk speed (client cannot set server Character on its own reliably in every game)
-    local player = game.Players.LocalPlayer
-    if player and player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = math.clamp(16 * val, 0, 200)
-    end
+-- Slider
+local sliderFrame = Instance.new("Frame", frame)
+sliderFrame.Size = UDim2.new(1, -20, 0, 40)
+sliderFrame.Position = UDim2.new(0, 10, 0, 140)
+sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Instance.new("UICorner", sliderFrame)
+
+local fill = Instance.new("Frame", sliderFrame)
+fill.Size = UDim2.new(0, 0, 1, 0)
+fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+Instance.new("UICorner", fill)
+
+local dragging = false
+
+sliderFrame.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
 end)
 
--- Tab 2
-local tab2 = ui:AddTab("Settings")
-tab2:AddLabel("Settings go here")
-tab2:AddButton("Close UI", function() ui:SetVisible(false) end)
+sliderFrame.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
 
--- Optional: toggle UI with a key (RightControl by default)
-local UserInputService = game:GetService("UserInputService")
-local visible = true
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.RightControl then
-        visible = not visible
-        ui:SetVisible(visible)
-    end
+UIS.InputChanged:Connect(function(i)
+	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+		local relative = math.clamp((i.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(relative, 0, 1, 0)
+		print("Slider value:", math.floor(relative * 100))
+	end
+end)
+
+-- Toggle UI with key M
+UIS.InputBegan:Connect(function(i)
+	if i.KeyCode == Enum.KeyCode.M then
+		frame.Visible = not frame.Visible
+	end
 end)
