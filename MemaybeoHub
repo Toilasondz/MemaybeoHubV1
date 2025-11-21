@@ -1,4 +1,4 @@
---== HoangSon COMBINED GUI v1.0 (Khanhly UI Style - Custom Button) ==--
+--== HoangSon COMBINED GUI v1.0 (HoangSon UI Style - Custom Button) ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -16,7 +16,7 @@ local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false -- Controls the main UI visibility
+local GUI_CLOSED = false 
 
 --== FOV CIRCLE (Drawing.new) ==--
 local fovCircle
@@ -74,7 +74,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---== FUNCTIONS ==--
+--== FUNCTIONS (isVisible & getClosestToFOV remain unchanged) ==--
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -109,17 +109,17 @@ local function getClosestToFOV()
     return closest
 end
 
---== KHANHLY UI LIBRARY ==--
-local KhanhlyUI = {}
+--== HOANGSON UI LIBRARY (MODIFIED) ==--
+local HoangSonUI = {}
 
-function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
+function HoangSonUI:CreateWindow(title, version, backgroundImageId)
     local gui = Instance.new("ScreenGui", PlayerGui)
-    gui.Name = "Khanhly_GUI"
+    gui.Name = "HoangSon_GUI" 
     gui.ResetOnSpawn = false
 
     local backgroundFrame = Instance.new("Frame", gui)
-    backgroundFrame.Size = UDim2.new(0, 700, 0, 450) -- Adjust size to fit Khanhly UI style
-    backgroundFrame.Position = UDim2.new(0.5, -350, 0.5, -225) -- Center it
+    backgroundFrame.Size = UDim2.new(0, 700, 0, 450) 
+    backgroundFrame.Position = UDim2.new(0.5, -350, 0.5, -225) 
     backgroundFrame.BackgroundTransparency = 1
     backgroundFrame.Name = "BackgroundFrame"
     backgroundFrame.Active = false
@@ -203,7 +203,7 @@ function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
     closeButton.TextSize = 18
     closeButton.ZIndex = 4
     
-    -- Drag Logic remains the same, using topBar as the handle
+    -- Drag Logic 
     local dragging, dragInput, dragStart, startPos
     local function update(input)
         local delta = input.Position - dragStart
@@ -246,13 +246,11 @@ function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
             if espData.Line then pcall(function() espData.Line:Remove() end) end
         end
     end)
-
-    -- ĐÃ XÓA: Left Navigation Panel (navPanel và các nút điều hướng)
     
-    -- Main Content Panel (Giờ sẽ chiếm toàn bộ không gian dưới Top Bar)
+    -- Main Content Panel
     local contentPanel = Instance.new("Frame", mainPanel)
-    contentPanel.Size = UDim2.new(1, 0, 1, -30) -- Full width, full height minus top bar
-    contentPanel.Position = UDim2.new(0, 0, 0, 30) -- Bắt đầu ngay dưới top bar
+    contentPanel.Size = UDim2.new(1, 0, 1, -30) 
+    contentPanel.Position = UDim2.new(0, 0, 0, 30) 
     contentPanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     contentPanel.BackgroundTransparency = 0.8 
     contentPanel.ZIndex = 3
@@ -263,14 +261,14 @@ function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
     local contentLayout = Instance.new("UIListLayout", contentPanel)
     contentLayout.Padding = UDim.new(0, 10)
     contentLayout.FillDirection = Enum.FillDirection.Vertical
-    contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center -- Căn giữa nút
-    contentLayout.VerticalAlignment = Enum.VerticalAlignment.Center    -- Căn giữa nút
+    contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    contentLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
     contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
     contentLayout.Parent = contentPanel 
 
-    -- Inner container for controls (giờ chỉ chứa nút "đẹp trai")
+    -- Inner container for controls 
     local innerContent = Instance.new("Frame", contentPanel)
-    innerContent.Size = UDim2.new(1, 0, 1, 0) -- Chiếm toàn bộ contentPanel để căn giữa dễ hơn
+    innerContent.Size = UDim2.new(1, 0, 1, 0) 
     innerContent.Position = UDim2.new(0, 0, 0, 0)
     innerContent.BackgroundTransparency = 1
     innerContent.Active = false
@@ -278,19 +276,18 @@ function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
     innerContentLayout.Padding = UDim.new(0, 8)
     innerContentLayout.FillDirection = Enum.FillDirection.Vertical
     innerContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    innerContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center -- Căn giữa nút
-    innerContentLayout.VerticalAlignment = Enum.VerticalAlignment.Center    -- Căn giữa nút
+    innerContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center 
+    innerContentLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
 
 
-    -- ĐÃ XÓA: Hàm KhanhlyUI:CreateToggle
-    -- Thay bằng hàm tạo nút tùy chỉnh duy nhất
-    function KhanhlyUI:CreateCustomButton(parentFrame, text, textToCopy)
+    -- Hàm tạo nút tùy chỉnh duy nhất
+    function HoangSonUI:CreateCustomButton(parentFrame, text, textToCopy)
         local btn = Instance.new("TextButton", parentFrame)
-        btn.Size = UDim2.new(0, 250, 0, 50) -- Kích thước lớn hơn cho nút "đẹp trai"
-        btn.BackgroundColor3 = Color3.fromRGB(50, 150, 255) -- Màu xanh đẹp hơn
+        btn.Size = UDim2.new(0, 300, 0, 60) -- Kích thước lớn, chắc chắn hiển thị
+        btn.BackgroundColor3 = Color3.fromRGB(50, 150, 255) 
         btn.TextColor3 = Color3.new(1, 1, 1)
         btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 20
+        btn.TextSize = 24 
         btn.Text = text
         btn.ZIndex = 5 
 
@@ -298,45 +295,53 @@ function KhanhlyUI:CreateWindow(title, version, backgroundImageId)
         cornerBtn.CornerRadius = UDim.new(0, 10)
         
         btn.MouseButton1Click:Connect(function()
-            -- Copy text to clipboard
+            local copySuccessful = false
             pcall(function()
-                setclipboard(textToCopy)
-                -- Optionally, show a temporary message
-                local successMsg = Instance.new("TextLabel")
-                successMsg.Size = UDim2.new(0, 200, 0, 30)
-                successMsg.Position = UDim2.new(0.5, -100, 0.8, 0)
-                successMsg.BackgroundTransparency = 0.5
-                successMsg.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                successMsg.TextColor3 = Color3.new(1, 1, 1)
-                successMsg.Text = "Đã copy: " .. textToCopy
-                successMsg.Font = Enum.Font.GothamBold
-                successMsg.TextSize = 14
-                successMsg.Parent = PlayerGui
-                successMsg.ZIndex = 10 -- Đảm bảo hiển thị trên cùng
-                local corner = Instance.new("UICorner", successMsg)
-                corner.CornerRadius = UDim.new(0, 5)
-
-                game:GetService("Debris"):AddItem(successMsg, 2) -- Tự động xóa sau 2 giây
+                setclipboard(textToCopy) 
+                copySuccessful = true
             end)
+
+            if copySuccessful then
+                 print("HOANGSON GUI: Đã copy thành công: " .. textToCopy)
+            else
+                 print("HOANGSON GUI: Không thể copy. Executor không hỗ trợ setclipboard().")
+            end
+
+            -- Hiển thị thông báo trên màn hình
+            local successMsg = Instance.new("TextLabel")
+            successMsg.Size = UDim2.new(0, 300, 0, 40)
+            successMsg.Position = UDim2.new(0.5, -150, 0.8, 0)
+            successMsg.BackgroundTransparency = 0.1
+            successMsg.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+            successMsg.TextColor3 = Color3.new(1, 1, 1)
+            successMsg.Text = "ĐÃ COPY: " .. textToCopy
+            successMsg.Font = Enum.Font.GothamBold
+            successMsg.TextSize = 16
+            successMsg.Parent = PlayerGui
+            successMsg.ZIndex = 10 
+            local corner = Instance.new("UICorner", successMsg)
+            corner.CornerRadius = UDim.new(0, 5)
+
+            game:GetService("Debris"):AddItem(successMsg, 2) 
         end)
     end
 
     return {
         Panel = mainPanel,
         Content = innerContent,
-        CreateCustomButton = function(text, textToCopy) KhanhlyUI:CreateCustomButton(innerContent, text, textToCopy) end
+        CreateCustomButton = function(text, textToCopy) HoangSonUI:CreateCustomButton(innerContent, text, textToCopy) end
     }
 end
 
 --== CREATE WINDOW + CUSTOM BUTTON ==--
-local KHANHLY_BG_IMAGE_ID = 9170251649 
+local HOANGSON_BG_IMAGE_ID = 9170251649 
 
-local win = KhanhlyUI:CreateWindow("Khanhly", "v1.6.53", KHANHLY_BG_IMAGE_ID)
+local win = HoangSonUI:CreateWindow("HoangSon COMBINED", "v1.0", HOANGSON_BG_IMAGE_ID) 
 
 -- Tạo nút "Click nếu như bạn đẹp trai"
 win:CreateCustomButton("Click nếu như bạn đẹp trai", "@hoangvanson_9k")
 
---== RENDER LOGIC ==--
+--== RENDER LOGIC (Không đổi) ==--
 RunService.RenderStepped:Connect(function()
     
     if GUI_CLOSED or not win.Panel.Visible then
