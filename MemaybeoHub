@@ -1,108 +1,51 @@
--- NEW SIMPLE UI (LocalScript)
+-- CHAT UI (Safe, Works in your own game)
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
 
 -- Create ScreenGui
 local gui = Instance.new("ScreenGui")
-gui.Name = "SimpleMenu"
+gui.Name = "ChatUI"
 gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Main Frame
+-- Main frame
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 350, 0, 250)
-frame.Position = UDim2.new(0.5, -175, 0.5, -125)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Visible = true
+frame.Size = UDim2.new(0, 300, 0, 120)
+frame.Position = UDim2.new(0.5, -150, 0.7, -60)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Parent = gui
 
 local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 8)
 
--- Draggable
-frame.Active = true
-frame.Draggable = true
+-- Textbox for typing
+local textbox = Instance.new("TextBox")
+textbox.Parent = frame
+textbox.Size = UDim2.new(1, -20, 0, 40)
+textbox.Position = UDim2.new(0, 10, 0, 10)
+textbox.PlaceholderText = "Type message..."
+textbox.Text = ""
+textbox.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+textbox.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", textbox)
 
--- Title
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundTransparency = 1
-title.Text = "Simple UI"
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.TextSize = 18
+-- Send Button
+local sendButton = Instance.new("TextButton")
+sendButton.Parent = frame
+sendButton.Size = UDim2.new(1, -20, 0, 40)
+sendButton.Position = UDim2.new(0, 10, 0, 60)
+sendButton.Text = "Send Chat"
+sendButton.BackgroundColor3 = Color3.fromRGB(80, 80, 255)
+sendButton.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", sendButton)
 
--- Button
-local button = Instance.new("TextButton", frame)
-button.Size = UDim2.new(1, -20, 0, 40)
-button.Position = UDim2.new(0, 10, 0, 40)
-button.Text = "Click Me"
-button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-button.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", button)
+-- Send message
+sendButton.MouseButton1Click:Connect(function()
+	local msg = textbox.Text
 
-button.MouseButton1Click:Connect(function()
-	print("Button clicked!")
-end)
-
--- Toggle
-local toggleState = false
-local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(1, -20, 0, 40)
-toggle.Position = UDim2.new(0, 10, 0, 90)
-toggle.Text = "Toggle: OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-toggle.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", toggle)
-
-toggle.MouseButton1Click:Connect(function()
-	toggleState = not toggleState
-	if toggleState then
-		toggle.Text = "Toggle: ON"
-		toggle.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-	else
-		toggle.Text = "Toggle: OFF"
-		toggle.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-	end
-end)
-
--- Slider
-local sliderFrame = Instance.new("Frame", frame)
-sliderFrame.Size = UDim2.new(1, -20, 0, 40)
-sliderFrame.Position = UDim2.new(0, 10, 0, 140)
-sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Instance.new("UICorner", sliderFrame)
-
-local fill = Instance.new("Frame", sliderFrame)
-fill.Size = UDim2.new(0, 0, 1, 0)
-fill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-Instance.new("UICorner", fill)
-
-local dragging = false
-
-sliderFrame.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-	end
-end)
-
-sliderFrame.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-
-UIS.InputChanged:Connect(function(i)
-	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-		local relative = math.clamp((i.Position.X - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-		fill.Size = UDim2.new(relative, 0, 1, 0)
-		print("Slider value:", math.floor(relative * 100))
-	end
-end)
-
--- Toggle UI with key M
-UIS.InputBegan:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.M then
-		frame.Visible = not frame.Visible
+	if msg ~= "" then
+		TextChatService.TextChannels.RBXGeneral:SendAsync(msg)
+		textbox.Text = ""
 	end
 end)
