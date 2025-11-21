@@ -1,4 +1,4 @@
---== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON VÀ THÊM NÚT MỞ/ĐÓNG MENU ==--
+--== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE (FINAL) - THÊM WALKSPEED ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,17 +7,21 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+--== STATES ==--
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false -- Biến này sẽ kiểm soát việc script có chạy hay không (dùng cho CloseBtn)
+local GUI_CLOSED = false 
 
---== FOV SETUP ==--
+local CURRENT_WALKSPEED = 16 -- Tốc độ mặc định của Roblox
+local MAX_WALKSPEED = 100 -- Tốc độ tối đa cho phép chỉnh
+local DEFAULT_WALKSPEED_SETTING = 16
+
+--== FOV SETUP (Giữ nguyên) ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -106,18 +110,24 @@ local function getClosestToFOV()
     return closest
 end
 
---== GUI DEFINITIONS ==--
-local ScreenGui, Frame, TitleBar, InfoLabel1, InfoLabel2
-local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
-local CustomCopyBtn 
-local ToggleBtn -- Nút mở/đóng menu mới
+-- Hàm cập nhật WalkSpeed
+local function updateWalkspeed(speed)
+    CURRENT_WALKSPEED = speed
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = speed
+    end
+end
+
+--== KHANHLY STYLE GUI ==--
+local ScreenGui, MainFrame, TopBar, CloseBtn, ToggleBtn 
+local MainTab, MainTabList
 local Notification
+
+local GUI_SIZE = UDim2.new(0, 700, 0, 450)
+local MAIN_TAB_WIDTH = 120
 
 function showNotification(msg)
     if GUI_CLOSED then return end
-    if not Notification or not Notification.Parent then
-        pcall(buildGUI)
-    end
     if not Notification then return end
     Notification.Text = msg
     Notification.Visible = true
@@ -135,101 +145,312 @@ local function buildGUI()
     end
 
     ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "PC_RBLX_GUI"
+    ScreenGui.Name = "HoangSon_KhanhlyStyle_GUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.Parent = PlayerGui
 
-    -- 1. NÚT MỞ/ĐÓNG MENU (ToggleBtn)
+    -- Nút Toggle Menu (Nút nhỏ ở góc)
     ToggleBtn = Instance.new("TextButton", ScreenGui)
     ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
-    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) -- Góc trên bên trái
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) 
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleBtn.Font = Enum.Font.SourceSansBold
     ToggleBtn.TextSize = 20
-    ToggleBtn.Text = "..." -- Hoặc bất kỳ biểu tượng nào
-    
+    ToggleBtn.Text = "..." 
     local cornerToggle = Instance.new("UICorner", ToggleBtn)
-    cornerToggle.CornerRadius = UDim.new(0, 5) -- Viền bẻ cong
+    cornerToggle.CornerRadius = UDim.new(0, 5)
 
-    -- 2. FRAME CHÍNH (Menu)
-    Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(0, 240, 0, 380) 
-    Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
-    Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    Frame.Active = true
-    Frame.Draggable = true
-    Frame.Visible = false -- Mặc định ẩn
-
-    TitleBar = Instance.new("TextLabel", Frame)
-    TitleBar.Size = UDim2.new(1, 0, 0, 40)
-    TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    TitleBar.Text = "PC RBLX v1.8"
-    TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
-    TitleBar.Font = Enum.Font.SourceSansBold
-    TitleBar.TextSize = 20
-
-    InfoLabel1 = Instance.new("TextLabel", Frame)
-    InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel1.Position = UDim2.new(0, 10, 0, 40)
-    InfoLabel1.BackgroundTransparency = 1
-    InfoLabel1.Text = "Hide/Show GUI: K"
-    InfoLabel1.TextColor3 = Color3.fromRGB(200,200,200)
-    InfoLabel1.Font = Enum.Font.SourceSansItalic
-    InfoLabel1.TextSize = 14
-
-    InfoLabel2 = Instance.new("TextLabel", Frame)
-    InfoLabel2.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel2.Position = UDim2.new(0, 10, 0, 55)
-    InfoLabel2.BackgroundTransparency = 1
-    InfoLabel2.Text = "Toggle Aimbot: E"
-    InfoLabel2.TextColor3 = Color3.fromRGB(200,200,200)
-    InfoLabel2.Font = Enum.Font.SourceSansItalic
-    InfoLabel2.TextSize = 14
-
-    local function createButton(text, posY, color)
-        local btn = Instance.new("TextButton", Frame)
-        btn.Size = UDim2.new(0,200,0,30)
-        btn.Position = UDim2.new(0,20,0,posY)
-        btn.Text = text
-        btn.BackgroundColor3 = color or Color3.fromRGB(60,60,60)
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 16
-        return btn
-    end
-
-    BtnToggleAimbot = createButton("Aimbot: OFF", 80)
-    BtnToggleESP = createButton("ESP: OFF", 120)
-    BtnToggleESPLines = createButton("ESP Lines: OFF", 160)
-    BtnToggleFOV = createButton("Show FOV: OFF", 200)
-    BtnToggleTeamCheck = createButton("Team Check: OFF", 240)
-    CloseBtn = createButton("CLOSE", 290, Color3.fromRGB(150,50,50)) 
-    
-    -- NÚT CUSTOM COPY
-    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 330, Color3.fromRGB(50, 150, 255))
-    CustomCopyBtn.TextSize = 18 
-
-    -- 3. NOTIFICATION
-    Notification = Instance.new("TextLabel", ScreenGui)
-    Notification.Size = UDim2.new(0,200,0,30)
-    Notification.Position = UDim2.new(1,-210,1,-40)
-    Notification.BackgroundTransparency = 0.3
-    Notification.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    Notification.TextColor3 = Color3.fromRGB(255,255,255)
-    Notification.TextScaled = true
-    Notification.Visible = false
-
-    --== EVENT HANDLERS ==--
-
-    -- Nút Toggle Menu (Mở/Đóng Frame chính)
     ToggleBtn.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
-        Frame.Visible = not Frame.Visible
+        MainFrame.Visible = not MainFrame.Visible
     end)
 
-    -- Nút Custom Copy (Giữ nguyên chức năng)
-    CustomCopyBtn.MouseButton1Click:Connect(function()
+
+    -- 1. MAIN FRAME (Khung chính)
+    MainFrame = Instance.new("Frame", ScreenGui)
+    MainFrame.Size = GUI_SIZE
+    MainFrame.Position = UDim2.new(0.5, -GUI_SIZE.Offset.X / 2, 0.5, -GUI_SIZE.Offset.Y / 2) 
+    MainFrame.BackgroundTransparency = 1
+    MainFrame.Active = true
+    MainFrame.Draggable = true
+    MainFrame.Visible = false 
+
+    local BackgroundImage = Instance.new("ImageLabel", MainFrame)
+    BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+    BackgroundImage.Image = "rbxassetid://9170251649" 
+    BackgroundImage.ScaleType = Enum.ScaleType.Stretch
+    BackgroundImage.ImageTransparency = 0.5
+    BackgroundImage.BackgroundTransparency = 1
+    local UICornerMain = Instance.new("UICorner", BackgroundImage)
+    UICornerMain.CornerRadius = UDim.new(0, 10)
+
+    local BackgroundOverlay = Instance.new("Frame", BackgroundImage)
+    BackgroundOverlay.Size = UDim2.new(1, 0, 1, 0)
+    BackgroundOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    BackgroundOverlay.BackgroundTransparency = 0.7 
+    
+    -- 2. TOP BAR (Thanh tiêu đề)
+    TopBar = Instance.new("Frame", BackgroundImage)
+    TopBar.Size = UDim2.new(1, 0, 0, 40)
+    TopBar.Position = UDim2.new(0, 0, 0, 0)
+    TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TopBar.BackgroundTransparency = 0.7
+    TopBar.ZIndex = 2
+    
+    local TopIcon = Instance.new("TextLabel", TopBar)
+    TopIcon.Size = UDim2.new(0, 30, 1, 0)
+    TopIcon.Position = UDim2.new(0, 5, 0, 0)
+    TopIcon.BackgroundTransparency = 1
+    TopIcon.Text = "" 
+    TopIcon.Font = Enum.Font.SourceSans
+    TopIcon.TextSize = 24
+    
+    local TopTitle = Instance.new("TextLabel", TopBar)
+    TopTitle.Size = UDim2.new(0.2, 0, 1, 0)
+    TopTitle.Position = UDim2.new(0, 35, 0, 0)
+    TopTitle.BackgroundTransparency = 1
+    TopTitle.Text = "HoangSon" 
+    TopTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TopTitle.Font = Enum.Font.GothamBold
+    TopTitle.TextSize = 18
+
+    local TopVersion = Instance.new("TextLabel", TopBar)
+    TopVersion.Size = UDim2.new(0, 60, 0, 20)
+    TopVersion.Position = UDim2.new(0, 150, 0, 10)
+    TopVersion.BackgroundColor3 = Color3.fromRGB(0, 150, 0) 
+    TopVersion.Text = "v1.8"
+    TopVersion.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TopVersion.Font = Enum.Font.SourceSans
+    TopVersion.TextSize = 14
+    local UICornerVersion = Instance.new("UICorner", TopVersion)
+    UICornerVersion.CornerRadius = UDim.new(0, 4)
+
+    -- Nút đóng (X)
+    CloseBtn = Instance.new("TextButton", TopBar)
+    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+    CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    CloseBtn.BackgroundTransparency = 0.5
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.Font = Enum.Font.SourceSans
+    CloseBtn.TextSize = 18
+    CloseBtn.ZIndex = 3
+
+    -- 3. TAB MENU (Bên trái)
+    MainTab = Instance.new("Frame", BackgroundImage)
+    MainTab.Size = UDim2.new(0, MAIN_TAB_WIDTH, 1, -40)
+    MainTab.Position = UDim2.new(0, 0, 0, 40)
+    MainTab.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    MainTab.BackgroundTransparency = 0.6
+    MainTab.ZIndex = 2
+    
+    MainTabList = Instance.new("UIListLayout", MainTab)
+    MainTabList.Padding = UDim.new(0, 5)
+    MainTabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    MainTabList.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local TabButton = Instance.new("TextButton", MainTab)
+    TabButton.Size = UDim2.new(1, 0, 0, 30)
+    TabButton.BackgroundTransparency = 1
+    TabButton.Text = "Main"
+    TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabButton.Font = Enum.Font.SourceSansBold
+    TabButton.TextSize = 16
+    
+    local TabIndicator = Instance.new("Frame", TabButton)
+    TabIndicator.Size = UDim2.new(0, 3, 1, 0)
+    TabIndicator.Position = UDim2.new(0, 0, 0, 0)
+    TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+
+    -- 4. CONTENT FRAME (Bên phải)
+    local ContentFrame = Instance.new("Frame", BackgroundImage)
+    ContentFrame.Size = UDim2.new(1, -MAIN_TAB_WIDTH, 1, -40)
+    ContentFrame.Position = UDim2.new(0, MAIN_TAB_WIDTH, 0, 40)
+    ContentFrame.BackgroundTransparency = 1
+    ContentFrame.ZIndex = 2
+    ContentFrame.ClipsDescendants = true 
+
+    local ContentLayout = Instance.new("UIListLayout", ContentFrame)
+    ContentLayout.Padding = UDim.new(0, 10)
+    ContentLayout.FillDirection = Enum.FillDirection.Vertical
+    ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    ContentLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+
+    --== HÀM TẠO CONTROLS (CUSTOM) ==--
+    local function createToggle(text, enabledState, clickFunction, parent)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -20, 0, 40) 
+        frame.Position = UDim2.new(0, 10, 0, 0)
+        frame.BackgroundTransparency = 1
+        
+        local Title = Instance.new("TextLabel", frame)
+        Title.Size = UDim2.new(0.7, 0, 0.5, 0)
+        Title.Position = UDim2.new(0, 0, 0, 0)
+        Title.BackgroundTransparency = 1
+        Title.Text = text 
+        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.Font = Enum.Font.SourceSans
+        Title.TextSize = 16
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local SubTitle = Instance.new("TextLabel", frame)
+        SubTitle.Size = UDim2.new(0.7, 0, 0.5, 0)
+        SubTitle.Position = UDim2.new(0, 0, 0.5, 0)
+        SubTitle.BackgroundTransparency = 1
+        SubTitle.Text = enabledState and "Bật" or "Tắt" 
+        SubTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+        SubTitle.Font = Enum.Font.SourceSans
+        SubTitle.TextSize = 14
+        SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local Toggle = Instance.new("TextButton", frame)
+        Toggle.Size = UDim2.new(0.2, 0, 0.8, 0)
+        Toggle.Position = UDim2.new(0.75, 0, 0.1, 0)
+        Toggle.BackgroundColor3 = enabledState and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        Toggle.Text = "" 
+        
+        local cornerToggle = Instance.new("UICorner", Toggle)
+        cornerToggle.CornerRadius = UDim.new(0, 5)
+
+        Toggle.MouseButton1Click:Connect(function()
+            if GUI_CLOSED then return end
+            clickFunction(Toggle, SubTitle)
+        end)
+        
+        return Toggle 
+    end
+
+    local function createButton(text, subText, clickFunction, parent)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -20, 0, 40)
+        frame.Position = UDim2.new(0, 10, 0, 0)
+        frame.BackgroundTransparency = 1
+
+        local Button = Instance.new("TextButton", frame)
+        Button.Size = UDim2.new(1, 0, 1, 0)
+        Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        Button.BackgroundTransparency = 0.5
+        local cornerFrame = Instance.new("UICorner", Button)
+        cornerFrame.CornerRadius = UDim.new(0, 5)
+
+        local Title = Instance.new("TextLabel", Button)
+        Title.Size = UDim2.new(1, 0, 0.5, 0)
+        Title.Position = UDim2.new(0, 10, 0, 0)
+        Title.BackgroundTransparency = 1
+        Title.Text = text
+        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.Font = Enum.Font.SourceSansBold
+        Title.TextSize = 16
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local SubText = Instance.new("TextLabel", Button)
+        SubText.Size = UDim2.new(1, 0, 0.5, 0)
+        SubText.Position = UDim2.new(0, 10, 0.5, 0)
+        SubText.BackgroundTransparency = 1
+        SubText.Text = subText
+        SubText.TextColor3 = Color3.fromRGB(200, 200, 200)
+        SubText.Font = Enum.Font.SourceSans
+        SubText.TextSize = 14
+        SubText.TextXAlignment = Enum.TextXAlignment.Left
+
+        Button.MouseButton1Click:Connect(function()
+            if GUI_CLOSED then return end
+            clickFunction()
+        end)
+    end
+    
+    local function createSlider(text, initialValue, minValue, maxValue, updateFunction, parent)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, -20, 0, 50) -- Chiều cao lớn hơn cho slider
+        frame.Position = UDim2.new(0, 10, 0, 0)
+        frame.BackgroundTransparency = 1
+        
+        local Title = Instance.new("TextLabel", frame)
+        Title.Size = UDim2.new(1, 0, 0.4, 0)
+        Title.Position = UDim2.new(0, 0, 0, 0)
+        Title.BackgroundTransparency = 1
+        Title.Text = text
+        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.Font = Enum.Font.SourceSans
+        Title.TextSize = 16
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local ValueLabel = Instance.new("TextLabel", frame)
+        ValueLabel.Size = UDim2.new(0.3, 0, 0.4, 0)
+        ValueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+        ValueLabel.BackgroundTransparency = 1
+        ValueLabel.Text = string.format("%.1f", initialValue)
+        ValueLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+        ValueLabel.Font = Enum.Font.SourceSansBold
+        ValueLabel.TextSize = 16
+        ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+        -- Slider Bar Background
+        local SliderBg = Instance.new("Frame", frame)
+        SliderBg.Size = UDim2.new(1, 0, 0, 8)
+        SliderBg.Position = UDim2.new(0, 0, 0.6, 0)
+        SliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        local cornerBar = Instance.new("UICorner", SliderBg)
+        cornerBar.CornerRadius = UDim.new(0, 4)
+
+        -- Slider Bar Fill
+        local fillRatio = (initialValue - minValue) / (maxValue - minValue)
+        local SliderFill = Instance.new("Frame", SliderBg)
+        SliderFill.Size = UDim2.new(fillRatio, 0, 1, 0)
+        SliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+
+        -- Slider Handle
+        local SliderHandle = Instance.new("ImageButton", SliderBg)
+        SliderHandle.Size = UDim2.new(0, 15, 0, 15)
+        SliderHandle.BackgroundTransparency = 1
+        SliderHandle.Image = "rbxassetid://603417772" -- Hình tròn trắng
+        SliderHandle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+        SliderHandle.ZIndex = 2
+        
+        -- Tính toán vị trí Handle dựa trên fillRatio
+        local handlePos = UDim2.new(fillRatio, -SliderHandle.Size.Offset.X * fillRatio, 0.5, -SliderHandle.Size.Offset.Y/2)
+        SliderHandle.Position = handlePos
+        
+        -- Logic kéo thả Slider
+        local dragging = false
+        SliderHandle.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                UserInputService.InputEnded:Wait()
+                dragging = false
+            end
+        end)
+
+        RunService.RenderStepped:Connect(function()
+            if dragging then
+                local absPos = UserInputService:GetMouseLocation()
+                local x = math.min(math.max(absPos.X - SliderBg.AbsolutePosition.X, 0), SliderBg.AbsoluteSize.X)
+                local ratio = x / SliderBg.AbsoluteSize.X
+                
+                local newValue = minValue + ratio * (maxValue - minValue)
+                
+                -- Cập nhật giá trị
+                updateFunction(newValue)
+                
+                -- Cập nhật UI
+                SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
+                SliderHandle.Position = UDim2.new(ratio, -SliderHandle.Size.Offset.X * ratio, 0.5, -SliderHandle.Size.Offset.Y/2)
+                ValueLabel.Text = string.format("%.1f", newValue)
+            end
+        end)
+        
+        return ValueLabel -- Trả về ValueLabel để cập nhật sau
+    end
+
+
+    --== TẠO CÁC CONTROLS CHÍNH ==--
+
+    -- Nút Custom Copy (HOANGSON)
+    createButton("HOANGSON COPY", "@hoangvanson_9k", function()
         local textToCopy = "@hoangvanson_9k"
         local copySuccessful = false
 
@@ -239,48 +460,81 @@ local function buildGUI()
         end)
 
         if copySuccessful then
-             print("PC RBLX: Đã copy thành công: " .. textToCopy)
+             print("HOANGSON: Đã copy thành công: " .. textToCopy)
              showNotification("ĐÃ COPY: " .. textToCopy)
         else
-             print("PC RBLX: KHÔNG THỂ COPY. Executor chặn setclipboard().")
+             print("HOANGSON: KHÔNG THỂ COPY. Executor chặn setclipboard().")
              showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
         end
-    end)
+    end, ContentFrame)
     
-    -- Các nút Toggle cũ (Giữ nguyên chức năng)
-    BtnToggleAimbot.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
+    -- Slider: WalkSpeed
+    local WalkspeedValueLabel = createSlider(
+        "WalkSpeed", 
+        DEFAULT_WALKSPEED_SETTING, 
+        16, 
+        MAX_WALKSPEED, 
+        updateWalkspeed, 
+        ContentFrame
+    )
+    
+    -- Toggle 1: Aimbot
+    local AimbotToggleBtn = createToggle("Aimbot Toggle (E)", AIMBOT_ENABLED, function(toggle, subtext)
         AIMBOT_ENABLED = not AIMBOT_ENABLED
-        BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
-    end)
-
-    BtnToggleESP.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
+        local state = AIMBOT_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+        showNotification(state and "Aimbot Enabled" or "Aimbot Disabled")
+    end, ContentFrame)
+    
+    -- Toggle 2: ESP
+    local ESPToggleBtn = createToggle("ESP Box", ESP_ENABLED, function(toggle, subtext)
         ESP_ENABLED = not ESP_ENABLED
-        BtnToggleESP.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
-    end)
-
-    BtnToggleESPLines.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
+        local state = ESP_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+    end, ContentFrame)
+    
+    -- Toggle 3: ESP Lines
+    local ESPLinesToggleBtn = createToggle("ESP Lines", ESPLINE_ENABLED, function(toggle, subtext)
         ESPLINE_ENABLED = not ESPLINE_ENABLED
-        BtnToggleESPLines.Text = "ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF")
-    end)
+        local state = ESPLINE_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+    end, ContentFrame)
 
-    BtnToggleFOV.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
+    -- Toggle 4: Show FOV
+    local FOVToggleBtn = createToggle("Show FOV Circle", FOV_ENABLED, function(toggle, subtext)
         FOV_ENABLED = not FOV_ENABLED
-        BtnToggleFOV.Text = "Show FOV: " .. (FOV_ENABLED and "ON" or "OFF")
-    end)
+        local state = FOV_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+    end, ContentFrame)
 
-    BtnToggleTeamCheck.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
+    -- Toggle 5: Team Check
+    local TeamCheckToggleBtn = createToggle("Team Check", TEAMCHECK_ENABLED, function(toggle, subtext)
         TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
-        BtnToggleTeamCheck.Text = "Team Check: " .. (TEAMCHECK_ENABLED and "ON" or "OFF")
-    end)
+        local state = TEAMCHECK_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+    end, ContentFrame)
 
+
+    -- 5. NOTIFICATION
+    Notification = Instance.new("TextLabel", ScreenGui)
+    Notification.Size = UDim2.new(0,200,0,30)
+    Notification.Position = UDim2.new(1,-210,1,-40)
+    Notification.BackgroundTransparency = 0.3
+    Notification.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Notification.TextColor3 = Color3.fromRGB(255,255,255)
+    Notification.TextScaled = true
+    Notification.Visible = false
+
+    -- EVENT HANDLERS
     CloseBtn.MouseButton1Click:Connect(function()
-        -- Tắt tất cả các tính năng & đóng GUI
+        -- Reset speed
+        updateWalkspeed(DEFAULT_WALKSPEED_SETTING)
+        
         AIMBOT_ENABLED = false
         ESP_ENABLED = false
         ESPLINE_ENABLED = false
@@ -288,8 +542,9 @@ local function buildGUI()
         TEAMCHECK_ENABLED = false
         GUI_CLOSED = true
 
-        if Frame then Frame.Visible = false end
-        if ScreenGui then ScreenGui.Enabled = false end -- Disable toàn bộ ScreenGui
+        MainFrame.Visible = false
+        ToggleBtn.Visible = false
+        ScreenGui.Enabled = false
 
         if fovCircle then fovCircle.Visible = false end
         for _, esp in pairs(ESPs) do
@@ -297,6 +552,7 @@ local function buildGUI()
             if esp.Line then esp.Line.Visible = false end
         end
     end)
+    
 end
 
 buildGUI()
@@ -309,15 +565,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     -- Phím E (Toggle Aimbot)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
-        if BtnToggleAimbot and BtnToggleAimbot.Parent then
-            BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
-        end
         showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
     
     -- Phím K (Toggle Menu)
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
-        if Frame then
-            Frame.Visible = not Frame.Visible
+        if MainFrame then
+            MainFrame.Visible = not MainFrame.Visible
         else
             pcall(buildGUI)
         end
@@ -327,7 +580,6 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.25)
     Camera = Workspace.CurrentCamera
-    Mouse = LocalPlayer:GetMouse()
     PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
     if not ScreenGui or not ScreenGui.Parent then
         pcall(buildGUI)
@@ -336,6 +588,8 @@ LocalPlayer.CharacterAdded:Connect(function(char)
             ScreenGui.Parent = PlayerGui
         end
     end
+    -- Đảm bảo WalkSpeed được áp dụng lại khi nhân vật spawn
+    updateWalkspeed(CURRENT_WALKSPEED)
 end)
 
 --== RENDER LOOP (Giữ nguyên) ==--
@@ -360,6 +614,9 @@ RunService.RenderStepped:Connect(function()
             local hrp = plr.Character.HumanoidRootPart
             local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
+            local boxColor = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+                and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
             -- ESP BOX
             if ESP_ENABLED and onScreen then
                 local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
@@ -369,8 +626,7 @@ RunService.RenderStepped:Connect(function()
                 if esp.Box then
                     esp.Box.Size = Vector2.new(height*0.6, height)
                     esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                    esp.Box.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                    esp.Box.Color = boxColor
                     esp.Box.Visible = true
                 end
             else
@@ -382,8 +638,7 @@ RunService.RenderStepped:Connect(function()
                 if esp.Line then
                     esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
                     esp.Line.To = Vector2.new(vec.X, vec.Y)
-                    esp.Line.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                    esp.Line.Color = boxColor
                     esp.Line.Visible = true
                 end
             else
