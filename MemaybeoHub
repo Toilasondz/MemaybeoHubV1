@@ -1,4 +1,4 @@
---== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE (FINAL) - ID ẢNH MỚI ==--
+--== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE (FINAL) - THÊM FLY/NOCLIP ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -16,10 +16,12 @@ local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
 local GUI_CLOSED = false 
+local FLY_ENABLED = false -- *** BIẾN MỚI CHO CHỨC NĂNG FLY ***
 
 local CURRENT_WALKSPEED = 16 
 local MAX_WALKSPEED = 100 
 local DEFAULT_WALKSPEED_SETTING = 16
+local FLY_SPEED = 100 -- Tốc độ bay mặc định
 
 --== FOV SETUP (Giữ nguyên) ==--
 local fovCircle
@@ -80,7 +82,7 @@ local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
     local dir = (part.Position - origin)
-    if dir.Magnitude == 0 then true end
+    if dir.Magnitude == 0 then return true end
     local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
     local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
     return hit and hit:IsDescendantOf(part.Parent)
@@ -114,6 +116,39 @@ local function updateWalkspeed(speed)
     CURRENT_WALKSPEED = speed
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = speed
+    end
+end
+
+-- Hàm xử lý Fly
+local function handleFly(state)
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+    if hrp and humanoid then
+        if state then
+            -- Bật Fly
+            humanoid.PlatformStand = true
+            
+            -- Xử lý NoClip
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        else
+            -- Tắt Fly
+            humanoid.PlatformStand = false
+            
+            -- Bật lại va chạm
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
     end
 end
 
@@ -175,23 +210,23 @@ local function buildGUI()
     MainFrame.Draggable = true
     MainFrame.Visible = false 
 
-    -- *** THAY FRAME BẰNG IMAGE LABEL VỚI ID MỚI: 75824323818711 ***
+    -- *** SỬ DỤNG HÌNH NỀN VÀ ID MỚI: 75824323818711 ***
     local BackgroundImage = Instance.new("ImageLabel", MainFrame)
     BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
-    BackgroundImage.Image = "rbxassetid://75824323818711" -- ID ẢNH MỚI ĐƯỢC CUNG CẤP
+    BackgroundImage.Image = "rbxassetid://75824323818711" 
     BackgroundImage.ScaleType = Enum.ScaleType.Stretch
-    BackgroundImage.ImageTransparency = 0.5 -- Độ trong suốt của hình ảnh
+    BackgroundImage.ImageTransparency = 0.5 
     BackgroundImage.BackgroundTransparency = 1
     local UICornerMain = Instance.new("UICorner", BackgroundImage)
     UICornerMain.CornerRadius = UDim.new(0, 10)
 
-    local BackgroundOverlay = Instance.new("Frame", BackgroundImage) -- Lớp phủ tối mờ
+    local BackgroundOverlay = Instance.new("Frame", BackgroundImage) 
     BackgroundOverlay.Size = UDim2.new(1, 0, 1, 0)
     BackgroundOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     BackgroundOverlay.BackgroundTransparency = 0.7 
     
     -- 2. TOP BAR (Thanh tiêu đề)
-    TopBar = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
+    TopBar = Instance.new("Frame", BackgroundImage) 
     TopBar.Size = UDim2.new(1, 0, 0, 40)
     TopBar.Position = UDim2.new(0, 0, 0, 0)
     TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -240,7 +275,7 @@ local function buildGUI()
     CloseBtn.ZIndex = 3
 
     -- 3. TAB MENU (Bên trái)
-    MainTab = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
+    MainTab = Instance.new("Frame", BackgroundImage) 
     MainTab.Size = UDim2.new(0, MAIN_TAB_WIDTH, 1, -40)
     MainTab.Position = UDim2.new(0, 0, 0, 40)
     MainTab.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
@@ -266,7 +301,7 @@ local function buildGUI()
     TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 
     -- 4. CONTENT FRAME (Bên phải)
-    local ContentFrame = Instance.new("Frame", BackgroundImage) -- Gắn vào BackgroundImage
+    local ContentFrame = Instance.new("Frame", BackgroundImage) 
     ContentFrame.Size = UDim2.new(1, -MAIN_TAB_WIDTH, 1, -40)
     ContentFrame.Position = UDim2.new(0, MAIN_TAB_WIDTH, 0, 40)
     ContentFrame.BackgroundTransparency = 1
@@ -519,6 +554,16 @@ local function buildGUI()
         subtext.Text = state and "Bật" or "Tắt"
     end, ContentFrame)
 
+    -- *** TOGGLE MỚI: FLY (BAY/NOCLIP) ***
+    local FlyToggleBtn = createToggle("Fly/NoClip (T)", FLY_ENABLED, function(toggle, subtext)
+        FLY_ENABLED = not FLY_ENABLED
+        local state = FLY_ENABLED
+        toggle.BackgroundColor3 = state and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(150, 0, 0)
+        subtext.Text = state and "Bật" or "Tắt"
+        handleFly(state)
+        showNotification(state and "Fly Enabled" or "Fly Disabled")
+    end, ContentFrame)
+
 
     -- 5. NOTIFICATION
     Notification = Instance.new("TextLabel", ScreenGui)
@@ -532,14 +577,16 @@ local function buildGUI()
 
     -- EVENT HANDLERS
     CloseBtn.MouseButton1Click:Connect(function()
-        -- Reset speed
+        -- Tắt tất cả các chức năng khi đóng GUI
         updateWalkspeed(DEFAULT_WALKSPEED_SETTING)
-        
+        handleFly(false) -- Tắt Fly khi đóng
+
         AIMBOT_ENABLED = false
         ESP_ENABLED = false
         ESPLINE_ENABLED = false
         FOV_ENABLED = false
         TEAMCHECK_ENABLED = false
+        FLY_ENABLED = false
         GUI_CLOSED = true
 
         MainFrame.Visible = false
@@ -567,6 +614,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         AIMBOT_ENABLED = not AIMBOT_ENABLED
         showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
     
+    -- Phím T (Toggle Fly)
+    elseif not gameProcessed and input.KeyCode == Enum.KeyCode.T then
+        FLY_ENABLED = not FLY_ENABLED
+        handleFly(FLY_ENABLED)
+        showNotification(FLY_ENABLED and "Fly Enabled" or "Fly Disabled")
+
     -- Phím K (Toggle Menu)
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if MainFrame then
@@ -588,17 +641,50 @@ LocalPlayer.CharacterAdded:Connect(function(char)
             ScreenGui.Parent = PlayerGui
         end
     end
-    -- Đảm bảo WalkSpeed được áp dụng lại khi nhân vật spawn
+    -- Đảm bảo WalkSpeed và Fly được áp dụng lại khi nhân vật spawn
     updateWalkspeed(CURRENT_WALKSPEED)
+    handleFly(FLY_ENABLED)
 end)
 
---== RENDER LOOP (Giữ nguyên) ==--
+--== RENDER LOOP (Xử lý AIMBOT, ESP và FLY Movement) ==--
 
 RunService.RenderStepped:Connect(function()
     if GUI_CLOSED then
         if fovCircle then fovCircle.Visible = false end
         return
     end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    -- *** FLY MOVEMENT ***
+    if FLY_ENABLED and char and hrp then
+        local moveVector = Vector3.new(0, 0, 0)
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveVector = moveVector + Camera.CFrame.lookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveVector = moveVector - Camera.CFrame.lookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveVector = moveVector - Camera.CFrame.rightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveVector = moveVector + Camera.CFrame.rightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveVector = moveVector + Vector3.new(0, 1, 0) -- Bay lên
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl) then
+            moveVector = moveVector - Vector3.new(0, 1, 0) -- Bay xuống
+        end
+
+        if moveVector.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + moveVector.Unit * FLY_SPEED * RunService.Heartbeat:Wait()
+        end
+    end
+
 
     if fovCircle then
         if FOV_ENABLED and Camera then
