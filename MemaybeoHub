@@ -1,5 +1,6 @@
---== LIBSUCK (ORION FORK) SCRIPT - CHỈ CHỨC NĂNG COMBAT/VISUAL ==--
+--== SCRIPT ĐÃ GỘP: GIAO DIỆN LIBSUCK (CODE.LUA) + CHỨC NĂNG COMBAT (CODE2.LUA) ==--
 
+-- [PHẦN 1: KHỞI TẠO HỆ THỐNG]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -9,18 +10,19 @@ local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Load the UI library (Libsuck/Orion)
+-- Load the UI library (Libsuck/Orion - Nội dung file Code.lua)
+-- Lưu ý: Sử dụng HTTP GET để tải thư viện UI Libsuck/Orion chuẩn
 local Library = loadstring(game:HttpGet('https://gist.githubusercontent.com/MjContiga1/5b9535166d60560ac884a871cb0dc418/raw/e7fdb16802d9486d8d04d3e41d3607d89e6b4a1b/Libsuck.lua'))()
 
---== BIẾN TRẠNG THÁI CORE ==--
+--== BIẾN TRẠNG THÁI CORE (Từ code2.lua) ==--
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local TARGET_PART = "Head" 
+local TARGET_PART = "Head" -- Thêm tùy chọn ngắm
 
---== FOV SETUP ==--
+--== FOV SETUP (Từ code2.lua) ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -36,7 +38,7 @@ do
     end
 end
 
---== ESP SETUP ==--
+--== ESP SETUP (Từ code2.lua) ==--
 local ESPs = {}
 
 local function createESP(plr)
@@ -74,7 +76,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
---== CORE COMBAT FUNCTIONS ==--
+--== CORE COMBAT FUNCTIONS (Từ code2.lua - Tối ưu Target) ==--
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -89,6 +91,7 @@ local function getClosestToFOV()
     if not AIMBOT_ENABLED then return nil end
     local closest, dist = nil, math.huge
     for _, plr in pairs(Players:GetPlayers()) do
+        -- Đảm bảo kiểm tra Target Part đã chọn
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(TARGET_PART) then
             if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
                 continue
@@ -98,6 +101,7 @@ local function getClosestToFOV()
             
             local vec, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
             if onScreen then
+                -- Lấy bán kính FOV từ fovCircle.Radius nếu FOV_ENABLED, ngược lại dùng 90 (như code cũ)
                 local fovRadius = (fovCircle and FOV_ENABLED) and fovCircle.Radius or 90
                 local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
                 if mag < fovRadius and mag < dist then
@@ -112,11 +116,10 @@ local function getClosestToFOV()
     return closest
 end
 
---== XÂY DỰNG GIAO DIỆN LIBSUCK ==--
 
-local window = Library:Window('HS Script - Combat Focus')
+-- [PHẦN 2: GIAO DIỆN LIBSUCK (TỪ CODE.LUA) - Giao diện]
 
--- Tabs
+local window = Library:Window('Gộp Script - Combat Focus')
 local combatTab = window:Tab({"Combat/Visual", "rbxassetid://7734022041"}) 
 local settingsTab = window:Tab({"Settings", "rbxassetid://7733673987"}) 
 
@@ -126,18 +129,18 @@ local settingsTab = window:Tab({"Settings", "rbxassetid://7733673987"})
 combatTab:Label("--- Aimbot Core Functions ---")
 
 -- Toggle 1: AIMBOT
-combatTab:Toggle('AIMBOT', AIMBOT_ENABLED, function(state)
+combatTab:Toggle('AIMBOT (Phím E)', AIMBOT_ENABLED, function(state)
     AIMBOT_ENABLED = state
     game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = state and "Aimbot Enabled" or "Aimbot Disabled"; Duration = 2; })
 end)
 
 -- Toggle 2: TEAM CHECK
-combatTab:Toggle('Team Check', TEAMCHECK_ENABLED, function(state)
+combatTab:Toggle('Team Check (Không ngắm đồng đội)', TEAMCHECK_ENABLED, function(state)
     TEAMCHECK_ENABLED = state
 end)
 
 -- Dropdown Target Part
-combatTab:Dropdown("Target Part", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
+combatTab:Dropdown("Target Part (Bộ phận ngắm)", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
     TARGET_PART = selected
     game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = "Target set to: " .. selected; Duration = 1; })
 end)
@@ -150,7 +153,7 @@ combatTab:Toggle('ESP Box', ESP_ENABLED, function(state)
 end)
 
 -- Toggle 4: ESP LINES
-combatTab:Toggle('ESP Lines', ESPLINE_ENABLED, function(state)
+combatTab:Toggle('ESP Lines (Đường Kẻ)', ESPLINE_ENABLED, function(state)
     ESPLINE_ENABLED = state
 end)
 
@@ -161,7 +164,7 @@ combatTab:Toggle('Show FOV Circle', FOV_ENABLED, function(state)
 end)
 
 -- Slider: FOV Radius
-combatTab:Slider("FOV Radius", 90, 360, 90, function(value)
+combatTab:Slider("FOV Radius (Độ rộng ngắm)", 90, 360, 90, function(value)
     if fovCircle then 
         fovCircle.Radius = value 
     end
@@ -189,10 +192,9 @@ settingsTab:Button('Teleport to Center (Utility)', function()
 end)
 
 
----
-## 🏃 Logic & Runtime
+-- [PHẦN 3: LOGIC RUNTIME (TỪ CODE2.LUA) - Connections]
 
--- Input Began (Phím tắt Aimbot)
+-- Input Began (Phím tắt Aimbot E)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
@@ -205,6 +207,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             Duration = 2;
         })
     end
+    -- Lưu ý: Phím K để mở/đóng GUI (từ code2.lua) bị bỏ qua, sử dụng phím INSERT mặc định của Libsuck.
 end)
 
 -- Character Added
