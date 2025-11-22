@@ -1,5 +1,154 @@
+--== SCRIPT KAVO UI TỐI GIẢN & DI CHUYỂN ĐƯỢC ==--
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local CoreGui = game:GetService("CoreGui")
+
+-- Tải thư viện Kavo UI
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Draggable Centered UI", "Ocean") 
+local Window = Library.CreateLib("Minimalist UI Base", "Ocean") 
 
 local KavoMainFrame = nil
-local KavoMainGui = nil
+local KavoMainGui = nil 
+
+-- ----------------------------------------------------
+-- A. LOGIC CĂN GIỮA & TÌM FRAME KAVO 
+-- ----------------------------------------------------
+
+local function findKavoGui()
+    -- Tìm ScreenGui của Kavo
+    for _, gui in pairs(PlayerGui:GetChildren()) do
+        if string.find(gui.Name, "Kavo_") and gui:IsA("ScreenGui") then
+            return gui
+        end
+    end
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if string.find(gui.Name, "Kavo_") and gui:IsA("ScreenGui") then
+            return gui
+        end
+    end
+    return nil
+end
+
+local function processKavoFrame(kavoGui)
+    local function findMainFrame(parent)
+        for _, child in pairs(parent:GetChildren()) do
+            -- Tìm Frame chính của Kavo (Frame có thể kéo)
+            if child:IsA("Frame") and (child.Name == "Main" or child.Active) then
+                return child
+            end
+        end
+        return nil
+    end
+
+    local frame = findMainFrame(kavoGui)
+    
+    if frame then
+        -- KÍCH THƯỚC GIẢ ĐỊNH & CĂN GIỮA BAN ĐẦU
+        -- Sử dụng kích thước 400x250 pixels và căn giữa (0.5, -200, 0.5, -125)
+        frame.Position = UDim2.new(0.5, -200, 0.5, -125) 
+        -- frame.Active = true (Mặc định của Kavo nên nó có thể di chuyển)
+        
+        KavoMainFrame = frame
+        KavoMainGui = kavoGui
+        
+        print("Kavo UI is now draggable and centered.")
+        KavoMainFrame.Visible = false -- Ẩn ban đầu
+    else
+        print("Warning: Could not find Kavo Main Frame.")
+    end
+end
+
+-- Chờ Kavo UI khởi tạo xong và xử lý
+task.spawn(function()
+    local kavoGui
+    repeat
+        kavoGui = findKavoGui()
+        task.wait(0.1)
+    until kavoGui ~= nil
+
+    processKavoFrame(kavoGui)
+end)
+
+
+-- Cấu trúc UI Kavo (Sườn, không chức năng)
+local MainTab = Window:NewTab("Main")
+local MainSection = MainTab:NewSection("Empty Section")
+
+MainSection:NewLabel("🎉 Chào mừng! Đây là giao diện sườn.")
+MainSection:NewLabel("Bạn có thể kéo menu này và bắt đầu thêm Toggle/Slider vào đây.")
+
+-- ----------------------------------------------------
+-- B. NÚT MỞ/ĐÓNG HÌNH VUÔNG BO GÓC (TÙY CHỈNH)
+-- ----------------------------------------------------
+
+local ToggleButton = Instance.new("ScreenGui")
+ToggleButton.Name = "CustomToggleButton"
+ToggleButton.Parent = PlayerGui
+ToggleButton.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local ButtonFrame = Instance.new("Frame")
+ButtonFrame.Name = "ToggleFrame"
+ButtonFrame.Parent = ToggleButton
+ButtonFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45) 
+ButtonFrame.BorderSizePixel = 0
+ButtonFrame.Size = UDim2.new(0, 50, 0, 50) 
+ButtonFrame.Position = UDim2.new(0.01, 0, 0.3, 0) -- Vị trí ban đầu
+ButtonFrame.Active = true 
+ButtonFrame.Selectable = true
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 6)
+Corner.Parent = ButtonFrame
+
+local ButtonLabel = Instance.new("TextLabel")
+ButtonLabel.Name = "IconLabel"
+ButtonLabel.Parent = ButtonFrame
+ButtonLabel.BackgroundTransparency = 1
+ButtonLabel.Size = UDim2.new(1, 0, 1, 0)
+ButtonLabel.Text = "UI" 
+ButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ButtonLabel.Font = Enum.Font.Code
+ButtonLabel.TextSize = 18
+
+-- Logic Kéo/Di chuyển Nút Toggle
+local dragging = false
+local dragStart, startPos
+local function startDrag(input)
+    if not dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        dragging = true
+        dragStart = input.Position
+        startPos = ButtonFrame.Position
+    end
+end
+local function doDrag(input)
+    if dragging then
+        local delta = input.Position - dragStart
+        ButtonFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end
+local function stopDrag()
+    dragging = false
+end
+ButtonFrame.InputBegan:Connect(startDrag)
+UserInputService.InputChanged:Connect(doDrag)
+UserInputService.InputEnded:Connect(stopDrag)
+
+-- Logic Click Nút để Mở/Đóng Kavo UI
+ButtonFrame.MouseButton1Click:Connect(function()
+    if not KavoMainFrame then
+        local kavoGui = findKavoGui()
+        if kavoGui then
+            processKavoFrame(kavoGui)
+        end
+    end
+    
+    if KavoMainFrame then
+        KavoMainFrame.Visible = not KavoMainFrame.Visible
+        ButtonLabel.TextColor3 = KavoMainFrame.Visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
+    else
+        game.StarterGui:SetCore("SendNotification", { Title = "Lỗi UI"; Text = "Không tìm thấy Frame chính của Kavo."; Duration = 3; })
+    end
+end)
