@@ -1,41 +1,288 @@
+--== SCRIPT ĐÃ GỘP: GIAO DIỆN KAVO UI + CHỨC NĂNG COMBAT (CODE2.LUA) ==--
+
+-- [PHẦN 1: KHỞI TẠO HỆ THỐNG VÀ LOGIC COMBAT TỪ code2.lua]
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Load the Kavo UI library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Youtube Example Hub", "Ocean")
+local Window = Library.CreateLib("Kavo Combat Hub", "Ocean") -- Tên Window đã được đổi
 
--- MAIN
-local Main = Window:NewTab("Main")
-local MainSection = Main:NewSection("Main")
+--== BIẾN TRẠNG THÁI CORE (Từ code2.lua) ==--
+local AIMBOT_ENABLED = false
+local ESP_ENABLED = false
+local ESPLINE_ENABLED = false
+local FOV_ENABLED = false
+local TEAMCHECK_ENABLED = false
+local TARGET_PART = "Head" 
 
-MainSection:NewButton("Back/Front Flip", "Makes you do gymnastics", function()
-    loadstring(game:HttpGet("https://pastebin.com/raw/7wDcPtLk"))()
-end)
-
-MainSection:NewToggle("Super-Human", "go fast and jump high", function(state)
-    if state then
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = 120
+--== FOV SETUP (Từ code2.lua) ==--
+local fovCircle
+do
+    local success, circle = pcall(function() return Drawing.new("Circle") end)
+    if success and circle then
+        fovCircle = circle
+        fovCircle.Visible = false
+        fovCircle.Radius = 90
+        fovCircle.Thickness = 2
+        fovCircle.Color = Color3.fromRGB(255,255,255)
+        fovCircle.Filled = false
     else
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+        fovCircle = nil
+    end
+end
+
+--== ESP SETUP (Từ code2.lua) ==--
+local ESPs = {}
+
+local function createESP(plr)
+    if not plr or plr == LocalPlayer then return end
+    if ESPs[plr] then return end
+
+    local successBox, box = pcall(function() return Drawing.new("Square") end)
+    local successLine, line = pcall(function() return Drawing.new("Line") end)
+    ESPs[plr] = {
+        Box = successBox and box or nil,
+        Line = successLine and line or nil
+    }
+
+    if ESPs[plr].Box then
+        ESPs[plr].Box.Visible = false
+        ESPs[plr].Box.Thickness = 1
+        ESPs[plr].Box.Filled = false
+    end
+    if ESPs[plr].Line then
+        ESPs[plr].Line.Visible = false
+        ESPs[plr].Line.Thickness = 1
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    createESP(p)
+end
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(function(plr)
+    local data = ESPs[plr]
+    if data then
+        if data.Box then pcall(function() data.Box:Remove() end) end
+        if data.Line then pcall(function() data.Line:Remove() end) end
+        ESPs[plr] = nil
     end
 end)
 
-MainSection:NewButton("Infinite Yield", "FE Admin Commands", function()
-    loadstring(game:HttpGet(("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"), true))()
+--== CORE COMBAT FUNCTIONS (Từ code2.lua) ==--
+local function isVisible(part)
+    if not part then return false end
+    local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
+    local dir = (part.Position - origin)
+    if dir.Magnitude == 0 then return true end
+    local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
+    local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true) 
+    return hit and hit:IsDescendantOf(part.Parent)
+end
+
+local function getClosestToFOV()
+    if not AIMBOT_ENABLED then return nil end
+    local closest, dist = nil, math.huge
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(TARGET_PART) then
+            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+                continue
+            end
+            local targetPart = plr.Character:FindFirstChild(TARGET_PART)
+            if not targetPart then continue end
+            
+            local vec, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            if onScreen then
+                local fovRadius = (fovCircle and FOV_ENABLED) and fovCircle.Radius or 90
+                local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if mag < fovRadius and mag < dist then
+                    if isVisible(targetPart) then
+                        closest = targetPart
+                        dist = mag
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- [PHẦN 2: GIAO DIỆN KAVO UI]
+
+-- Tạo Tabs mới
+local CombatTab = Window:NewTab("Combat")
+local VisualTab = Window:NewTab("Visuals")
+local SettingsTab = Window:NewTab("Settings")
+
+---
+## 🎯 Combat Settings (CombatTab)
+
+local AimbotSection = CombatTab:NewSection("Aimbot")
+
+-- Toggle AIMBOT
+AimbotSection:NewToggle("Aimbot (Phím E)", "Tự động ngắm vào mục tiêu gần nhất trong FOV", function(state)
+    AIMBOT_ENABLED = state
 end)
 
--- LOCAL PLAYER
-local Player = Window:NewTab("Player")
-local PlayerSection = Player:NewSection("Player")
-
-PlayerSection:NewSlider("Walkspeed", "SPEED!!", 500, 16, function(s) -- 500 (MaxValue) | 0 (MinValue)
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = s
+-- Toggle Team Check
+AimbotSection:NewToggle("Team Check", "Không ngắm vào đồng đội (Nếu có Team)", function(state)
+    TEAMCHECK_ENABLED = state
 end)
 
-PlayerSection:NewSlider("Jumppower", "JUMP HIGH!!", 350, 50, function(s) -- 500 (MaxValue) | 0 (MinValue)
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = s
+-- Dropdown Target Part
+AimbotSection:NewDropdown("Target Part", "Chọn bộ phận ngắm của mục tiêu", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
+    TARGET_PART = selected
 end)
 
-PlayerSection:NewButton("Reset WS/JP", "Resets to all defaults", function()
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+-- Button Utility
+AimbotSection:NewButton("Teleport to 0, 50, 0", "Dịch chuyển nhân vật về vị trí trung tâm", function()
+    local Player = game.Players.LocalPlayer
+    if Player and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        Player.Character.HumanoidRootPart.CFrame = CFrame.new(0, 50, 0) 
+        game.StarterGui:SetCore("SendNotification", { Title = "Teleport"; Text = "Teleported to 0, 50, 0"; Duration = 3; })
+    end
+end)
+
+
+---
+## 👁️ Visual Settings (VisualTab)
+
+local ESPSection = VisualTab:NewSection("ESP & Visuals")
+
+-- Toggle ESP Box
+ESPSection:NewToggle("ESP Box", "Hiển thị hộp xung quanh kẻ thù", function(state)
+    ESP_ENABLED = state
+end)
+
+-- Toggle ESP Lines
+ESPSection:NewToggle("ESP Lines", "Hiển thị đường kẻ từ trên màn hình đến mục tiêu", function(state)
+    ESPLINE_ENABLED = state
+end)
+
+local FOVSection = VisualTab:NewSection("FOV Circle")
+
+-- Toggle Show FOV Circle
+FOVSection:NewToggle("Show FOV Circle", "Hiển thị vòng tròn FOV trên màn hình", function(state)
+    FOV_ENABLED = state
+    if fovCircle then fovCircle.Visible = state end
+end)
+
+-- Slider FOV Radius
+FOVSection:NewSlider("FOV Radius", "Điều chỉnh độ rộng của vùng ngắm Aimbot", 
+    {Min = 10, Max = 360, Default = 90, Round = 0}, 
+    function(value)
+        if fovCircle then fovCircle.Radius = value end
+    end
+)
+
+---
+## ⚙️ Keybinds & Utility (SettingsTab)
+
+local KeybindSection = SettingsTab:NewSection("Keybinds")
+
+-- Kavo UI thường sử dụng Keybinds của riêng nó, chỉ hiển thị phím tắt Aimbot
+KeybindSection:NewLabel("Aimbot Toggle: E (Nút bên ngoài)")
+KeybindSection:NewLabel("Toggle Menu: Mặc định của Kavo UI (Thường là Right Shift)")
+
+
+-- [PHẦN 3: LOGIC RUNTIME TỪ code2.lua]
+
+-- Input Began (Phím tắt Aimbot E)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    -- Phím E: Toggle Aimbot
+    if input.KeyCode == Enum.KeyCode.E then
+        AIMBOT_ENABLED = not AIMBOT_ENABLED
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Aimbot Toggle";
+            Text = AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled";
+            Duration = 2;
+        })
+    end
+end)
+
+-- Character Added
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.25)
+    Camera = Workspace.CurrentCamera
+    Mouse = LocalPlayer:GetMouse()
+    PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+end)
+
+-- RENDER LOOP (Xử lý ESP/AIMBOT)
+RunService.RenderStepped:Connect(function()
+    
+    -- FOV VISUAL
+    if fovCircle then
+        if FOV_ENABLED and Camera then
+            fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            -- Visibility được điều chỉnh qua toggle UI
+        else
+            fovCircle.Visible = false
+        end
+    end
+
+    -- ESP VISUALS
+    for plr, esp in pairs(ESPs) do
+        if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
+            local hrp = plr.Character.HumanoidRootPart
+            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            local teamCheck = TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team
+            local visualColor = teamCheck and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+            if not ESP_ENABLED and not ESPLINE_ENABLED then
+                 if esp.Box then esp.Box.Visible = false end
+                 if esp.Line then esp.Line.Visible = false end
+                 goto continue
+            end
+
+            -- ESP BOX
+            if ESP_ENABLED and onScreen then
+                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
+                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
+                local height = math.abs(topVec.Y - bottomVec.Y)
+                if esp.Box then
+                    esp.Box.Size = Vector2.new(height*0.6, height)
+                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
+                    esp.Box.Color = visualColor
+                    esp.Box.Visible = true
+                end
+            else
+                if esp.Box then esp.Box.Visible = false end
+            end
+
+            -- ESP LINES
+            if ESPLINE_ENABLED and onScreen then
+                if esp.Line then
+                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
+                    esp.Line.To = Vector2.new(vec.X, vec.Y)
+                    esp.Line.Color = visualColor
+                    esp.Line.Visible = true
+                end
+            else
+                if esp.Line then esp.Line.Visible = false end
+            end
+            ::continue::
+        else
+            if esp.Box then esp.Box.Visible = false end
+            if esp.Line then esp.Line.Visible = false end
+        end
+    end
+
+    -- AIMBOT LOGIC
+    if AIMBOT_ENABLED and Camera then
+        local target = getClosestToFOV()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
 end)
