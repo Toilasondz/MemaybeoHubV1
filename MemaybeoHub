@@ -1,157 +1,67 @@
---== SCRIPT ME MAY BEO UI + SON AIMBOT TÍCH HỢP ==--
-
--- [PHẦN 1: TẢI UI & KHỞI TẠO HỆ THỐNG]
-local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/Toilasondz/cokka/refs/heads/main/cokkahub"))()
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-
--- Khai báo biến Aimbot
-local AIMBOT_ENABLED = false
-local TEAMCHECK_ENABLED = false -- Mặc định: Ngắm tất cả
-local TARGET_PART = "Head"      -- Bộ phận ngắm mặc định
-
--- Setup FOV Circle (cần thiết cho Aimbot)
-local fovCircle
-do
-    local success, circle = pcall(function() return Drawing.new("Circle") end)
-    if success and circle then
-        fovCircle = circle
-        fovCircle.Visible = false
-        fovCircle.Radius = 90
-        fovCircle.Thickness = 2
-        fovCircle.Color = Color3.fromRGB(255,255,255)
-        fovCircle.Filled = false
-    else
-        fovCircle = nil
-    end
-end
-
---== CORE AIMBOT FUNCTIONS (TỪ code2.lua) ==--
-local function isVisible(part)
-    if not part then return false end
-    local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
-    local dir = (part.Position - origin)
-    if dir.Magnitude == 0 then return true end
-    local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
-    local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true) 
-    return hit and hit:IsDescendantOf(part.Parent)
-end
-
-local function getClosestToFOV()
-    if not AIMBOT_ENABLED then return nil end
-    local closest, dist = nil, math.huge
-    local fovRadius = (fovCircle and fovCircle.Visible) and fovCircle.Radius or 90
-    
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(TARGET_PART) then
-            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
-                continue
-            end
-            local targetPart = plr.Character:FindFirstChild(TARGET_PART)
-            if not targetPart then continue end
-            
-            local vec, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-                local mag = (Vector2.new(vec.X, vec.Y) - center).Magnitude
-                
-                if mag < fovRadius and mag < dist then
-                    if isVisible(targetPart) then
-                        closest = targetPart
-                        dist = mag
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
--- ----------------------------------------------------
--- [PHẦN 2: CẤU TRÚC UI ME MAY BEO]
--- ----------------------------------------------------
+ local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/Toilasondz/cokka/refs/heads/main/cokkahub "))()
 
 local win = ui:CreateWindow("MeMayBeo")
 
+
+
 local main = win:AddTab("Main⛪️")
-local combatTab = win:AddTab("Combat⚔️") -- Tab mới cho Aimbot
+
 local credits = win:AddTab("Tác Giả")
 
--- Tab Main (Giữ nguyên)
+
+
 local title = main:AddLabel("MeMayBeo")
+
+
+
 local button = main:AddButton("Button","Prints Cool Button",function()
- print("Cool Button")
+
+ print("Cool Button")
+
 end)
+
+
+
+local toggle = main:AddToggle("SON",false,
+
+ function()
+
+  print("Toggle turned ON")
+
+ end,
+
+ function()
+
+  print("Toggle turned OFF")
+
+ end
+
+)
+
+
+
 local slider = main:AddSlider("Slider",0,100,50,function(v)
- print("Slider Changed To: "..v)
+
+ print("Slider Changed To: "..v)
+
 end)
+
+
+
 local textbox = main:AddTextbox("Enter Text","Type here...",function(t)
- print("You typed: "..t)
+
+ print("You typed: "..t)
+
 end)
+
+
+
 local dropdown = main:AddDropdown("Choose Option",{"Red","Blue","Green","Purple"},function(s)
- print("You selected: "..s)
-end)
 
--- Tab Combat (Thêm Aimbot)
-combatTab:AddLabel("Chức năng Aimbot (Bật/Tắt bằng SON)")
-combatTab:AddToggle("SON", false,
-    function()
-        AIMBOT_ENABLED = true
-        if fovCircle then fovCircle.Visible = true end -- Hiện FOV khi bật
-        game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = "SON Aimbot Đã Bật!"; Duration = 2; })
-    end,
-    function()
-        AIMBOT_ENABLED = false
-        if fovCircle then fovCircle.Visible = false end -- Ẩn FOV khi tắt
-        game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = "SON Aimbot Đã Tắt!"; Duration = 2; })
-    end
-)
+ print("You selected: "..s)
 
-combatTab:AddDropdown("Target Part", {"Head", "Torso", "HumanoidRootPart"}, function(s)
-    TARGET_PART = s
-    game.StarterGui:SetCore("SendNotification", { Title = "Target"; Text = "Ngắm vào: "..s; Duration = 1; })
-end)
-
-combatTab:AddToggle("Team Check", false,
-    function()
-        TEAMCHECK_ENABLED = true
-        game.StarterGui:SetCore("SendNotification", { Title = "Team Check"; Text = "Bỏ qua Đồng đội: Đã Bật"; Duration = 2; })
-    end,
-    function()
-        TEAMCHECK_ENABLED = false
-        game.StarterGui:SetCore("SendNotification", { Title = "Team Check"; Text = "Bỏ qua Đồng đội: Đã Tắt"; Duration = 2; })
-    end
-)
-
-combatTab:AddSlider("FOV Radius", 10, 360, 90, function(v)
-    if fovCircle then fovCircle.Radius = v end
 end)
 
 
--- Tab Tác Giả (Giữ nguyên)
+
 local credit = credits:AddLabel("Made By @hoangvanson_9k")
-
-
--- ----------------------------------------------------
--- [PHẦN 3: RENDER LOOP (LOGIC AIMBOT)]
--- ----------------------------------------------------
-RunService.RenderStepped:Connect(function()
-    
-    -- Cập nhật FOV Circle
-    if fovCircle and Camera then
-        fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-        -- Độ hiển thị của FOV được điều khiển bởi toggle Aimbot
-    end
-
-    -- AIMBOT LOGIC
-    if AIMBOT_ENABLED and Camera then
-        local target = getClosestToFOV()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
-    end
-end)
-
