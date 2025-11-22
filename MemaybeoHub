@@ -1,4 +1,4 @@
---== SCRIPT KAVO UI THU NHỎ & CĂN GIỮA HOÀN TOÀN ==--
+--== SCRIPT KAVO UI: DI CHUYỂN ĐƯỢC, THU NHỎ & CĂN GIỮA ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -8,17 +8,16 @@ local CoreGui = game:GetService("CoreGui")
 
 -- Load the Kavo UI library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Centered Fixed UI (Smaller)", "Ocean") 
+local Window = Library.CreateLib("Draggable Centered UI", "Ocean") 
 
 local KavoMainFrame = nil
 local KavoMainGui = nil 
 
 -- ----------------------------------------------------
--- A. LOGIC VÔ HIỆU HÓA DI CHUYỂN, CĂN GIỮA & TÌM FRAME KAVO
+-- A. LOGIC TÌM FRAME KAVO & CĂN GIỮA BAN ĐẦU
 -- ----------------------------------------------------
 
 local function findKavoGui()
-    -- Tìm ScreenGui của Kavo trong PlayerGui hoặc CoreGui
     for _, gui in pairs(PlayerGui:GetChildren()) do
         if string.find(gui.Name, "Kavo_") and gui:IsA("ScreenGui") then
             return gui
@@ -35,7 +34,7 @@ end
 local function processKavoFrame(kavoGui)
     local function findMainFrame(parent)
         for _, child in pairs(parent:GetChildren()) do
-            -- Tìm Frame chính của Kavo (Thường là frame có Active=true)
+            -- Tìm Frame chính của Kavo (Frame có thể kéo)
             if child:IsA("Frame") and (child.Name == "Main" or child.Active) then
                 return child
             end
@@ -46,19 +45,17 @@ local function processKavoFrame(kavoGui)
     local frame = findMainFrame(kavoGui)
     
     if frame then
-        -- 1. VÔ HIỆU HÓA DI CHUYỂN (Menu cố định)
-        frame.Active = false 
-        frame.Selectable = false
+        -- 1. GIỮ NGUYÊN TÍNH NĂNG DI CHUYỂN (frame.Active = true)
 
         -- 2. THU NHỎ & CĂN GIỮA MÀN HÌNH
-        -- Giả định kích thước mới: 400x250 pixels.
-        -- Tính toán vị trí căn giữa: (0.5 - 400/2, 0.5 - 250/2) => (0.5, -200, 0.5, -125)
+        -- Kích thước giả định mới: 400x250 pixels.
+        -- Căn giữa: (0.5, -200, 0.5, -125)
         frame.Position = UDim2.new(0.5, -200, 0.5, -125) 
         
         KavoMainFrame = frame
         KavoMainGui = kavoGui
         
-        print("Kavo UI positioned correctly (400x250) and drag disabled.")
+        print("Kavo UI is now draggable and centered.")
         KavoMainFrame.Visible = false -- Ẩn ban đầu
     else
         print("Warning: Could not find Kavo Main Frame.")
@@ -80,9 +77,8 @@ end)
 -- Cấu trúc UI Kavo (Chỉ có sườn)
 local MainTab = Window:NewTab("Main")
 local MainSection = MainTab:NewSection("Status")
-MainSection:NewLabel("Giao diện UI đã được thu nhỏ và căn giữa.")
-MainSection:NewLabel("---")
-MainSection:NewLabel("Sẵn sàng để thêm chức năng của bạn.")
+MainSection:NewLabel("Giao diện UI có thể di chuyển được.")
+MainSection:NewLabel("Kích thước: Đã được thu nhỏ và căn giữa ban đầu.")
 
 
 -- ----------------------------------------------------
@@ -119,7 +115,7 @@ ButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 ButtonLabel.Font = Enum.Font.Code
 ButtonLabel.TextSize = 18
 
--- Logic Kéo/Di chuyển Nút Toggle
+-- Logic Kéo/Di chuyển Nút Toggle (Chỉ nút nhỏ này được kéo)
 local dragging = false
 local dragStart, startPos
 local function startDrag(input)
@@ -144,7 +140,6 @@ UserInputService.InputEnded:Connect(stopDrag)
 
 -- Logic Click Nút để Mở/Đóng Kavo UI
 ButtonFrame.MouseButton1Click:Connect(function()
-    -- Cố gắng tìm lại frame nếu lần trước thất bại
     if not KavoMainFrame then
         local kavoGui = findKavoGui()
         if kavoGui then
