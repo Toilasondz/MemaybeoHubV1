@@ -1,4 +1,4 @@
---== SCRIPT ĐÃ GỘP: GIAO DIỆN KAVO UI + CHỨC NĂNG COMBAT (CODE2.LUA) ==--
+--== SCRIPT GIAO DIỆN MỚI: KAVO UI VÀ CHỨC NĂNG COMBAT HOÀN CHỈNH ==--
 
 -- [PHẦN 1: KHỞI TẠO HỆ THỐNG VÀ LOGIC COMBAT TỪ code2.lua]
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Load the Kavo UI library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Kavo Combat Hub", "Ocean") -- Tên Window đã được đổi
+local Window = Library.CreateLib("Ultimate Combat Focus", "Ocean") -- Tên Window hoàn toàn mới
 
 --== BIẾN TRẠNG THÁI CORE (Từ code2.lua) ==--
 local AIMBOT_ENABLED = false
@@ -114,35 +114,36 @@ local function getClosestToFOV()
     return closest
 end
 
--- [PHẦN 2: GIAO DIỆN KAVO UI]
+-- [PHẦN 2: THIẾT KẾ GIAO DIỆN KAVO UI MỚI]
 
--- Tạo Tabs mới
 local CombatTab = Window:NewTab("Combat")
 local VisualTab = Window:NewTab("Visuals")
 local SettingsTab = Window:NewTab("Settings")
 
 ---
-## 🎯 Combat Settings (CombatTab)
+## 🎯 Combat Settings
 
-local AimbotSection = CombatTab:NewSection("Aimbot")
+local AimbotSection = CombatTab:NewSection("Aimbot Core")
 
 -- Toggle AIMBOT
-AimbotSection:NewToggle("Aimbot (Phím E)", "Tự động ngắm vào mục tiêu gần nhất trong FOV", function(state)
+AimbotSection:NewToggle("Aimbot", "Tự động khóa và ngắm vào mục tiêu gần nhất trong FOV.", function(state)
     AIMBOT_ENABLED = state
 end)
 
 -- Toggle Team Check
-AimbotSection:NewToggle("Team Check", "Không ngắm vào đồng đội (Nếu có Team)", function(state)
+AimbotSection:NewToggle("Team Check", "Không ngắm vào đồng đội (Bỏ qua những người cùng Team).", function(state)
     TEAMCHECK_ENABLED = state
 end)
 
 -- Dropdown Target Part
-AimbotSection:NewDropdown("Target Part", "Chọn bộ phận ngắm của mục tiêu", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
+AimbotSection:NewDropdown("Target Part", "Chọn bộ phận ngắm của mục tiêu.", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
     TARGET_PART = selected
 end)
 
--- Button Utility
-AimbotSection:NewButton("Teleport to 0, 50, 0", "Dịch chuyển nhân vật về vị trí trung tâm", function()
+local UtilitySection = CombatTab:NewSection("Utility")
+
+-- Nút Utility
+UtilitySection:NewButton("Teleport to Center (0, 50, 0)", "Dịch chuyển nhân vật về vị trí trung tâm thế giới.", function()
     local Player = game.Players.LocalPlayer
     if Player and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         Player.Character.HumanoidRootPart.CFrame = CFrame.new(0, 50, 0) 
@@ -150,32 +151,31 @@ AimbotSection:NewButton("Teleport to 0, 50, 0", "Dịch chuyển nhân vật v�
     end
 end)
 
-
 ---
-## 👁️ Visual Settings (VisualTab)
+## 👁️ Visual Settings
 
-local ESPSection = VisualTab:NewSection("ESP & Visuals")
+local ESPSection = VisualTab:NewSection("Enemy ESP")
 
 -- Toggle ESP Box
-ESPSection:NewToggle("ESP Box", "Hiển thị hộp xung quanh kẻ thù", function(state)
+ESPSection:NewToggle("ESP Box", "Hiển thị hộp 2D xung quanh kẻ thù.", function(state)
     ESP_ENABLED = state
 end)
 
 -- Toggle ESP Lines
-ESPSection:NewToggle("ESP Lines", "Hiển thị đường kẻ từ trên màn hình đến mục tiêu", function(state)
+ESPSection:NewToggle("ESP Lines", "Hiển thị đường kẻ từ trên màn hình đến mục tiêu.", function(state)
     ESPLINE_ENABLED = state
 end)
 
 local FOVSection = VisualTab:NewSection("FOV Circle")
 
 -- Toggle Show FOV Circle
-FOVSection:NewToggle("Show FOV Circle", "Hiển thị vòng tròn FOV trên màn hình", function(state)
+FOVSection:NewToggle("Show FOV Circle", "Hiển thị vòng tròn FOV trên màn hình.", function(state)
     FOV_ENABLED = state
     if fovCircle then fovCircle.Visible = state end
 end)
 
 -- Slider FOV Radius
-FOVSection:NewSlider("FOV Radius", "Điều chỉnh độ rộng của vùng ngắm Aimbot", 
+FOVSection:NewSlider("FOV Radius", "Điều chỉnh độ rộng của vùng ngắm Aimbot.", 
     {Min = 10, Max = 360, Default = 90, Round = 0}, 
     function(value)
         if fovCircle then fovCircle.Radius = value end
@@ -183,13 +183,23 @@ FOVSection:NewSlider("FOV Radius", "Điều chỉnh độ rộng của vùng ng�
 )
 
 ---
-## ⚙️ Keybinds & Utility (SettingsTab)
+## ⚙️ Keybinds & Customization
 
 local KeybindSection = SettingsTab:NewSection("Keybinds")
 
--- Kavo UI thường sử dụng Keybinds của riêng nó, chỉ hiển thị phím tắt Aimbot
-KeybindSection:NewLabel("Aimbot Toggle: E (Nút bên ngoài)")
-KeybindSection:NewLabel("Toggle Menu: Mặc định của Kavo UI (Thường là Right Shift)")
+-- Kavo UI hiển thị keybinds tốt hơn so với Libsuck, nhưng chúng ta vẫn nên thông báo keybind E
+KeybindSection:NewLabel("Phím tắt Aimbot: **E** (Toggle ON/OFF)")
+KeybindSection:NewLabel("Phím tắt Menu: Thường là **Right Shift** (Mặc định Kavo)")
+
+local CustomSection = SettingsTab:NewSection("Customization")
+CustomSection:NewSlider("UI Opacity", "Điều chỉnh độ trong suốt của cửa sổ UI.", 
+    {Min = 0.5, Max = 1, Default = 1, Round = 2}, 
+    function(value)
+        -- Kavo UI không cung cấp hàm đơn giản để chỉnh Transparency, 
+        -- nhưng ta có thể in ra giá trị để tùy chỉnh thủ công.
+        print("UI Opacity set to: ", value)
+    end
+)
 
 
 -- [PHẦN 3: LOGIC RUNTIME TỪ code2.lua]
@@ -224,7 +234,7 @@ RunService.RenderStepped:Connect(function()
     if fovCircle then
         if FOV_ENABLED and Camera then
             fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-            -- Visibility được điều chỉnh qua toggle UI
+            fovCircle.Visible = true
         else
             fovCircle.Visible = false
         end
