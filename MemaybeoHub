@@ -1,36 +1,20 @@
--- Tham chiếu (Reference) các đối tượng UI
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Youtube Example Hub", "Ocean")
 
--- 1. Nút bấm Mở/Đóng (ToggleBtn)
-local toggleButton = script.Parent
+-- MAIN
+local Main = Window:NewTab("Main")
+local MainSection = Main:NewSection("Main")
 
--- 2. Khung Menu chính (MenuFrame) - nằm trong cùng ScreenGui
-local screenGui = toggleButton.Parent
-local menuFrame = screenGui:WaitForChild("MenuFrame")
+MainSection:NewButton("Back/Front Flip", "Makes you do gymnastics", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/7wDcPtLk"))()
+end)
 
--- 3. Biến trạng thái để biết menu đang Mở hay Đóng
-local isMenuOpen = false
-
--- ==========================================================
-
--- Hàm này được gọi mỗi khi người chơi nhấn nút
-local function onButtonClicked()
-    -- Đảo ngược trạng thái
-    isMenuOpen = not isMenuOpen
-    
-    -- Dựa vào trạng thái mới, ẩn/hiện Frame
-    if isMenuOpen then
-        -- Mở Menu
-        menuFrame.Visible = true
-        toggleButton.Text = "Đóng Menu"
-        print("Menu đã được MỞ")
+MainSection:NewToggle("Super-Human", "go fast and jump high", function(state)
+    if state then
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = 120
     else
-        -- Đóng Menu
-        menuFrame.Visible = false
-        toggleButton.Text = "Mở Menu"
-        print("Menu đã bị ĐÓNG")
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
     end
-end
-
--- Kết nối hàm (function) với sự kiện (event)
--- Khi người chơi nhấn chuột trái vào nút, hàm onButtonClicked sẽ chạy.
-toggleButton.MouseButton1Click:Connect(onButtonClicked)
+end)
