@@ -1,5 +1,5 @@
 local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/PlayerZN-Gaming/PlayerZN----Roblox-UI-Libraries/refs/heads/main/CodewareLib "))()
-local win = ui:CreateWindow("CodeWare UI Library")
+local win = ui:CreateWindow("MeMayBeo")
 
 local main = win:AddTab("Main⛪️")
 local credits = win:AddTab("Tác Giả")
@@ -32,5 +32,6 @@ local dropdown = main:AddDropdown("Choose Option",{"Red","Blue","Green","Purple"
 end)
 
 local credit = credits:AddLabel("Made By @hoangvanson_9k")
+
 
 
