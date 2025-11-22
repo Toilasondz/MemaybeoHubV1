@@ -1,308 +1,36 @@
---== SCRIPT ĐÃ GỘP: GIAO DIỆN LIBSUCK (UI TEMPLATE) + CHỨC NĂNG COMBAT (CODE2.LUA) ==--
+-- Tham chiếu (Reference) các đối tượng UI
 
--- [PHẦN 1: KHỞI TẠO HỆ THỐNG VÀ LOGIC COMBAT TỪ code2.lua]
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+-- 1. Nút bấm Mở/Đóng (ToggleBtn)
+local toggleButton = script.Parent
 
--- Load the UI library (Libsuck/Orion)
-local Library = loadstring(game:HttpGet('https://gist.githubusercontent.com/MjContiga1/5b9535166d60560ac884a871cb0dc418/raw/e7fdb16802d9486d8d04d3e41d3607d89e6b4a1b/Libsuck.lua'))()
+-- 2. Khung Menu chính (MenuFrame) - nằm trong cùng ScreenGui
+local screenGui = toggleButton.Parent
+local menuFrame = screenGui:WaitForChild("MenuFrame")
 
---== BIẾN TRẠNG THÁI CORE (Từ code2.lua) ==--
-local AIMBOT_ENABLED = false
-local ESP_ENABLED = false
-local ESPLINE_ENABLED = false
-local FOV_ENABLED = false
-local TEAMCHECK_ENABLED = false
-local TARGET_PART = "Head" -- Bộ phận ngắm mặc định
+-- 3. Biến trạng thái để biết menu đang Mở hay Đóng
+local isMenuOpen = false
 
---== FOV SETUP (Từ code2.lua) ==--
-local fovCircle
-do
-    local success, circle = pcall(function() return Drawing.new("Circle") end)
-    if success and circle then
-        fovCircle = circle
-        fovCircle.Visible = false
-        fovCircle.Radius = 90
-        fovCircle.Thickness = 2
-        fovCircle.Color = Color3.fromRGB(255,255,255)
-        fovCircle.Filled = false
-    else
-        fovCircle = nil
-    end
-end
+-- ==========================================================
 
---== ESP SETUP (Từ code2.lua) ==--
-local ESPs = {}
-
-local function createESP(plr)
-    if not plr or plr == LocalPlayer then return end
-    if ESPs[plr] then return end
-
-    local successBox, box = pcall(function() return Drawing.new("Square") end)
-    local successLine, line = pcall(function() return Drawing.new("Line") end)
-    ESPs[plr] = {
-        Box = successBox and box or nil,
-        Line = successLine and line or nil
-    }
-
-    if ESPs[plr].Box then
-        ESPs[plr].Box.Visible = false
-        ESPs[plr].Box.Thickness = 1
-        ESPs[plr].Box.Filled = false
-    end
-    if ESPs[plr].Line then
-        ESPs[plr].Line.Visible = false
-        ESPs[plr].Line.Thickness = 1
-    end
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    createESP(p)
-end
-Players.PlayerAdded:Connect(createESP)
-Players.PlayerRemoving:Connect(function(plr)
-    local data = ESPs[plr]
-    if data then
-        if data.Box then pcall(function() data.Box:Remove() end) end
-        if data.Line then pcall(function() data.Line:Remove() end) end
-        ESPs[plr] = nil
-    end
-end)
-
---== CORE COMBAT FUNCTIONS (Từ code2.lua) ==--
-local function isVisible(part)
-    if not part then return false end
-    local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
-    local dir = (part.Position - origin)
-    if dir.Magnitude == 0 then return true end
-    local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
-    local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true) 
-    return hit and hit:IsDescendantOf(part.Parent)
-end
-
-local function getClosestToFOV()
-    if not AIMBOT_ENABLED then return nil end
-    local closest, dist = nil, math.huge
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(TARGET_PART) then
-            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
-                continue
-            end
-            local targetPart = plr.Character:FindFirstChild(TARGET_PART)
-            if not targetPart then continue end
-            
-            local vec, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                local fovRadius = (fovCircle and FOV_ENABLED) and fovCircle.Radius or 90
-                local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if mag < fovRadius and mag < dist then
-                    if isVisible(targetPart) then
-                        closest = targetPart
-                        dist = mag
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
-
--- [PHẦN 2: GIAO DIỆN LIBSUCK (SỬ DỤNG CẤU TRÚC TEMPLATE CỦA BẠN)]
-
--- Create main window
-local window = Library:Window('Combat Script Focus')
-
--- Create tabs with icons (Giữ nguyên cấu trúc tab và icon của bạn)
-local mainTab = window:Tab({"Combat/Visual", "rbxassetid://7734022041"}) -- Thay đổi tên thành Combat/Visual
-local localTab = window:Tab({"Aimbot Settings", "rbxassetid://7743875962"}) -- Thay đổi tên thành Aimbot Settings
-local settingsTab = window:Tab({"Utility/Settings", "rbxassetid://7733673987"}) -- Thay đổi tên thành Utility/Settings
-
----
-## 🎯 Combat/Visual Controls (mainTab)
-
-mainTab:Label("--- Aimbot / ESP Core Functions ---")
-
--- Toggle 1: AIMBOT
-mainTab:Toggle('AIMBOT (Phím E)', AIMBOT_ENABLED, function(state)
-    AIMBOT_ENABLED = state
-    game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = state and "Aimbot Enabled" or "Aimbot Disabled"; Duration = 2; })
-end)
-
--- Toggle 2: ESP Box
-mainTab:Toggle('ESP Box', ESP_ENABLED, function(state)
-    ESP_ENABLED = state
-end)
-
--- Toggle 3: ESP Lines
-mainTab:Toggle('ESP Lines (Đường kẻ)', ESPLINE_ENABLED, function(state)
-    ESPLINE_ENABLED = state
-end)
-
-mainTab:Label("--- FOV Settings ---")
-
--- Toggle 4: SHOW FOV
-mainTab:Toggle('Show FOV Circle', FOV_ENABLED, function(state)
-    FOV_ENABLED = state
-    if fovCircle then fovCircle.Visible = state end
-end)
-
--- Slider: FOV Radius
-mainTab:Slider("FOV Radius (Độ rộng ngắm)", 90, 360, 90, function(value)
-    if fovCircle then 
-        fovCircle.Radius = value 
-    end
-end)
-
----
-## ⚙️ Aimbot Settings (localTab)
-
-localTab:Label("Aimbot Targeting & Team Check")
-
--- Dropdown Target Part
-localTab:Dropdown("Target Part (Bộ phận ngắm)", {"Head", "Torso", "HumanoidRootPart"}, function(selected)
-    TARGET_PART = selected
-    game.StarterGui:SetCore("SendNotification", { Title = "Aimbot"; Text = "Target set to: " .. selected; Duration = 1; })
-end)
-
--- Toggle 5: TEAM CHECK
-localTab:Toggle('Team Check (Không ngắm đồng đội)', TEAMCHECK_ENABLED, function(state)
-    TEAMCHECK_ENABLED = state
-end)
-
--- Nút Utility (Lấy từ code2.lua)
-localTab:Button('Teleport to Center (Utility)', function()
-    local Player = game.Players.LocalPlayer
-    if Player and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        Player.Character.HumanoidRootPart.CFrame = CFrame.new(0, 50, 0) 
-        game.StarterGui:SetCore("SendNotification", { Title = "Teleport"; Text = "Teleported to 0, 50, 0"; Duration = 3; })
-    end
-end)
-
----
-## 🖥️ Utility/Settings (settingsTab)
-
-settingsTab:Label("Keybinds")
-
-settingsTab:Keybind("Aimbot Toggle Key", Enum.KeyCode.E, function(key)
-    print("Aimbot Keybind set to: " .. key.Name)
-end)
-
-settingsTab:Keybind("Toggle Menu Key", Enum.KeyCode.Insert, function(key)
-    print("Menu Keybind set to: " .. key.Name)
-end)
-
--- Các phần tử còn lại của Settings Tab được giữ làm ví dụ
-settingsTab:Label("--- UI Examples ---")
-
-settingsTab:Toggle('Dark Mode', true, function(state)
-    print("Dark Mode:", state)
-    -- Thêm logic chỉnh Dark Mode nếu có
-end)
-
-settingsTab:Slider("UI Transparency", 0, 100, 100, function(value)
-    print("UI Transparency:", value)
-    -- Thêm logic chỉnh Transparency nếu có
-end)
-
--- [PHẦN 3: LOGIC RUNTIME TỪ code2.lua]
-
--- Input Began (Phím tắt Aimbot E)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-
-    -- Phím E: Toggle Aimbot
-    if input.KeyCode == Enum.KeyCode.E then
-        AIMBOT_ENABLED = not AIMBOT_ENABLED
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Aimbot Toggle";
-            Text = AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled";
-            Duration = 2;
-        })
-    end
-    -- Libsuck dùng phím INSERT để toggle menu
-end)
-
--- Character Added
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(0.25)
-    Camera = Workspace.CurrentCamera
-    Mouse = LocalPlayer:GetMouse()
-    PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-end)
-
--- RENDER LOOP (Xử lý ESP/AIMBOT)
-RunService.RenderStepped:Connect(function()
+-- Hàm này được gọi mỗi khi người chơi nhấn nút
+local function onButtonClicked()
+    -- Đảo ngược trạng thái
+    isMenuOpen = not isMenuOpen
     
-    -- FOV VISUAL
-    if fovCircle then
-        if FOV_ENABLED and Camera then
-            fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-            fovCircle.Visible = true
-        else
-            fovCircle.Visible = false
-        end
+    -- Dựa vào trạng thái mới, ẩn/hiện Frame
+    if isMenuOpen then
+        -- Mở Menu
+        menuFrame.Visible = true
+        toggleButton.Text = "Đóng Menu"
+        print("Menu đã được MỞ")
+    else
+        -- Đóng Menu
+        menuFrame.Visible = false
+        toggleButton.Text = "Mở Menu"
+        print("Menu đã bị ĐÓNG")
     end
+end
 
-    -- ESP VISUALS
-    for plr, esp in pairs(ESPs) do
-        if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
-            local hrp = plr.Character.HumanoidRootPart
-            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-            
-            local teamCheck = TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team
-            local visualColor = teamCheck and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-
-            if not ESP_ENABLED and not ESPLINE_ENABLED then
-                 if esp.Box then esp.Box.Visible = false end
-                 if esp.Line then esp.Line.Visible = false end
-                 goto continue
-            end
-
-            -- ESP BOX
-            if ESP_ENABLED and onScreen then
-                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
-                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
-                local height = math.abs(topVec.Y - bottomVec.Y)
-                if esp.Box then
-                    esp.Box.Size = Vector2.new(height*0.6, height)
-                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                    esp.Box.Color = visualColor
-                    esp.Box.Visible = true
-                end
-            else
-                if esp.Box then esp.Box.Visible = false end
-            end
-
-            -- ESP LINES
-            if ESPLINE_ENABLED and onScreen then
-                if esp.Line then
-                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
-                    esp.Line.To = Vector2.new(vec.X, vec.Y)
-                    esp.Line.Color = visualColor
-                    esp.Line.Visible = true
-                end
-            else
-                if esp.Line then esp.Line.Visible = false end
-            end
-            ::continue::
-        else
-            if esp.Box then esp.Box.Visible = false end
-            if esp.Line then esp.Line.Visible = false end
-        end
-    end
-
-    -- AIMBOT LOGIC
-    if AIMBOT_ENABLED and Camera then
-        local target = getClosestToFOV()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
-    end
-end)
+-- Kết nối hàm (function) với sự kiện (event)
+-- Khi người chơi nhấn chuột trái vào nút, hàm onButtonClicked sẽ chạy.
+toggleButton.MouseButton1Click:Connect(onButtonClicked)
