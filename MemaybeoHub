@@ -1,4 +1,4 @@
---== SCRIPT KAVO UI TỐI ƯU: ĐÃ FIX LỖI TOGGLE NÚT NGUỒN ==--
+--== SCRIPT KAVO UI CĂN GIỮA & CỐ ĐỊNH ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -8,14 +8,13 @@ local CoreGui = game:GetService("CoreGui")
 
 -- Load the Kavo UI library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Fixed UI", "Ocean") 
+local Window = Library.CreateLib("Centered Fixed UI", "Ocean") 
 
--- Biến toàn cục để lưu trữ Frame Kavo chính
 local KavoMainFrame = nil
-local KavoMainGui = nil -- Thêm biến này để lưu ScreenGui gốc
+local KavoMainGui = nil 
 
 -- ----------------------------------------------------
--- A. LOGIC VÔ HIỆU HÓA DI CHUYỂN & TÌM FRAME KAVO
+-- A. LOGIC VÔ HIỆU HÓA DI CHUYỂN, CĂN GIỮA & TÌM FRAME KAVO
 -- ----------------------------------------------------
 
 local function findKavoGui()
@@ -24,7 +23,6 @@ local function findKavoGui()
             return gui
         end
     end
-    -- Thử CoreGui
     for _, gui in pairs(CoreGui:GetChildren()) do
         if string.find(gui.Name, "Kavo_") and gui:IsA("ScreenGui") then
             return gui
@@ -33,26 +31,33 @@ local function findKavoGui()
     return nil
 end
 
-local function disableKavoDrag(kavoGui)
-    -- Hàm tìm kiếm Frame chính của Kavo (thường là Frame có Active=true)
+local function processKavoFrame(kavoGui)
     local function findMainFrame(parent)
         for _, child in pairs(parent:GetChildren()) do
-            if child:IsA("Frame") and (child.Name == "Main" or child.Name == "DragFrame" or child.Active) then
-                -- Vô hiệu hóa tính năng di chuyển
-                child.Active = false 
-                child.Selectable = false
+            -- Tìm Frame chính của Kavo
+            if child:IsA("Frame") and (child.Name == "Main" or child.Active) then
                 return child
             end
         end
         return nil
     end
 
-    KavoMainFrame = findMainFrame(kavoGui)
-    KavoMainGui = kavoGui -- Lưu ScreenGui gốc
+    local frame = findMainFrame(kavoGui)
+    
+    if frame then
+        -- 1. VÔ HIỆU HÓA DI CHUYỂN (Cố định menu)
+        frame.Active = false 
+        frame.Selectable = false
 
-    if KavoMainFrame then
-        print("Kavo UI drag disabled and frame located.")
-        -- Ẩn ban đầu
+        -- 2. CĂN GIỮA MÀN HÌNH (Lỗi kích thước bị che khuất)
+        -- Kích thước ước tính của Kavo UI: 470 x 283
+        -- Công thức căn giữa: (0.5, -Kích thước ngang/2, 0.5, -Kích thước dọc/2)
+        frame.Position = UDim2.new(0.5, -235, 0.5, -141) 
+        
+        KavoMainFrame = frame
+        KavoMainGui = kavoGui
+        
+        print("Kavo UI positioned correctly and drag disabled.")
         KavoMainFrame.Visible = false
     else
         print("Warning: Could not find Kavo Main Frame.")
@@ -62,13 +67,12 @@ end
 -- Chờ Kavo UI khởi tạo xong và xử lý
 task.spawn(function()
     local kavoGui
-    -- Lặp lại việc tìm kiếm cho đến khi Kavo Gui xuất hiện (an toàn hơn)
     repeat
         kavoGui = findKavoGui()
         task.wait(0.1)
     until kavoGui ~= nil
 
-    disableKavoDrag(kavoGui)
+    processKavoFrame(kavoGui)
 end)
 
 
@@ -76,8 +80,8 @@ end)
 local MainTab = Window:NewTab("Main")
 local MainSection = MainTab:NewSection("Status")
 MainSection:NewLabel("Giao diện UI đã khởi tạo thành công.")
-MainSection:NewLabel("---")
-MainSection:NewLabel("Chức năng di chuyển đã được cố gắng vô hiệu hóa.")
+MainSection:NewLabel("Vị trí: Căn giữa màn hình.")
+MainSection:NewLabel("Trạng thái: Cố định (Không di chuyển được).")
 
 
 -- ----------------------------------------------------
@@ -96,7 +100,7 @@ ButtonFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 ButtonFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 ButtonFrame.BorderSizePixel = 0
 ButtonFrame.Size = UDim2.new(0, 50, 0, 50) 
-ButtonFrame.Position = UDim2.new(0.01, 0, 0.3, 0)
+ButtonFrame.Position = UDim2.new(0.01, 0, 0.3, 0) -- Vị trí ban đầu
 ButtonFrame.Active = true 
 ButtonFrame.Selectable = true
 
@@ -114,7 +118,7 @@ ButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 ButtonLabel.Font = Enum.Font.Code
 ButtonLabel.TextSize = 18
 
--- Logic Kéo/Di chuyển Nút Toggle
+-- Logic Kéo/Di chuyển Nút Toggle (Chỉ nút nhỏ này được kéo)
 local dragging = false
 local dragStart, startPos
 local function startDrag(input)
@@ -139,21 +143,17 @@ UserInputService.InputEnded:Connect(stopDrag)
 
 -- Logic Click Nút để Mở/Đóng Kavo UI
 ButtonFrame.MouseButton1Click:Connect(function()
-    -- Nếu chưa tìm thấy frame, cố gắng tìm lại ngay lúc click
     if not KavoMainFrame then
         local kavoGui = findKavoGui()
         if kavoGui then
-            disableKavoDrag(kavoGui)
+            processKavoFrame(kavoGui)
         end
     end
     
     if KavoMainFrame then
-        -- Toggle Visible
         KavoMainFrame.Visible = not KavoMainFrame.Visible
-        
-        -- Đổi màu nút Toggle để báo hiệu trạng thái
         ButtonLabel.TextColor3 = KavoMainFrame.Visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
     else
-        game.StarterGui:SetCore("SendNotification", { Title = "Lỗi UI"; Text = "Không tìm thấy Frame chính của Kavo. Đang thử lại..."; Duration = 3; })
+        game.StarterGui:SetCore("SendNotification", { Title = "Lỗi UI"; Text = "Không tìm thấy Frame chính của Kavo."; Duration = 3; })
     end
 end)
