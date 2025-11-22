@@ -10,7 +10,7 @@ local button = main:AddButton("Button","Prints Cool Button",function()
  print("Cool Button")
 end)
 
-local toggle = main:AddToggle("Toggle Switch",false,
+local toggle = main:AddToggle("SON",false,
  function()
   print("Toggle turned ON")
  end,
@@ -32,4 +32,5 @@ local dropdown = main:AddDropdown("Choose Option",{"Red","Blue","Green","Purple"
 end)
 
 local credit = credits:AddLabel("Made By @hoangvanson_9k")
+
 
