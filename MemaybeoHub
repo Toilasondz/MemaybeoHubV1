@@ -18,3 +18,7 @@ MainSection:NewToggle("Super-Human", "go fast and jump high", function(state)
         game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
     end
 end)
+
+MainSection:NewButton("Infinite Yield", "FE Admin Commands", function()
+    loadstring(game:HttpGet(("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"), true))()
+end)
