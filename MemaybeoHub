@@ -1,252 +1,141 @@
--- =====================================================================================
--- 1. KHỞI TẠO RAYFIELD UI
--- =====================================================================================
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
+-- ====================================================================
+-- 1. TẢI VÀ KHỞI TẠO THƯ VIỆN RAYFIELD
+-- ====================================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- =====================================================================================
--- 2. KHAI BÁO DỊCH VỤ, BIẾN TOÀN CỤC & SETUP BAN ĐẦU
--- =====================================================================================
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+-- ====================================================================
+-- 2. KHAI BÁO BIẾN TOÀN CỤC CHO TÍNH NĂNG
+-- ====================================================================
+-- Biến kiểm soát trạng thái Infinite Jump
+_G.InfinJump = false
+-- Biến kiểm soát việc lắng nghe sự kiện phím (để tránh lãng phí tài nguyên)
+_G.InfinJumpStarted = nil
 
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- Các biến kiểm soát tính năng
-local AIMBOT_ENABLED = false
-local ESP_ENABLED = false
-local ESPLINE_ENABLED = false
-local FOV_ENABLED = false
-local TEAMCHECK_ENABLED = false
-
-local ESPs = {}
-
--- Thiết lập FOV Circle (sử dụng thư viện Drawing)
-local fovCircle
-do
-    local success, circle = pcall(function() return Drawing.new("Circle") end)
-    if success and circle then
-        fovCircle = circle
-        fovCircle.Visible = false
-        fovCircle.Radius = 90
-        fovCircle.Thickness = 2
-        fovCircle.Color = Color3.fromRGB(255,255,255)
-        fovCircle.Filled = false
-    else
-        fovCircle = nil
-    end
-end
-
--- =====================================================================================
--- 3. CÁC HÀM HỖ TRỢ
--- =====================================================================================
-
-local function showNotification(msg)
-    Rayfield:Notify({
-        Title = "MeMayBeo Hub",
-        Content = msg,
-        Duration = 3,
-    })
-end
-
-local function createESP(plr)
-    if not plr or plr == LocalPlayer then return end
-    if ESPs[plr] then return end
-
-    local successBox, box = pcall(function() return Drawing.new("Square") end)
-    local successLine, line = pcall(function() return Drawing.new("Line") end)
-    ESPs[plr] = {
-        Box = successBox and box or nil,
-        Line = successLine and line or nil
-    }
-
-    if ESPs[plr].Box then
-        ESPs[plr].Box.Visible = false
-        ESPs[plr].Box.Thickness = 1
-        ESPs[plr].Box.Filled = false
-    end
-    if ESPs[plr].Line then
-        ESPs[plr].Line.Visible = false
-        ESPs[plr].Line.Thickness = 1
-    end
-end
-
-local function isVisible(part)
-    if not part then return false end
-    local origin = Camera.CFrame.Position
-    local dir = (part.Position - origin)
-    if dir.Magnitude == 0 then return true end
-    local ray = Ray.new(origin, dir.Unit * dir.Magnitude)
-    local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
-    return hit and hit:IsDescendantOf(part.Parent)
-end
-
-local function getClosestToFOV()
-    if not AIMBOT_ENABLED then return nil end
-    local closest, dist = nil, math.huge
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
-            if TEAMCHECK_ENABLED and plr.Team == LocalPlayer.Team then continue end
-
-            local head = plr.Character.Head
-            local vec, onScreen = Camera:WorldToViewportPoint(head.Position)
-            if onScreen then
-                local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if mag < (fovCircle and fovCircle.Radius or 90) and mag < dist then
-                    if isVisible(head) then
-                        closest = head
-                        dist = mag
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
--- =====================================================================================
--- 4. SETUP RAYFIELD UI
--- =====================================================================================
-
+-- ====================================================================
+-- 3. TẠO CỬA SỔ VÀ CẤU HÌNH (Đã tắt Key System)
+-- ====================================================================
 local Window = Rayfield:CreateWindow{
-    Name = "MeMayBeo",
-    LoadingTitle = "MeMayBeo Hub",
-    LoadingSubtitle = "by @hoangvanson_9k",
-    ConfigurationSaving = { Enabled = false },
-    KeySystem = false
+    Name = "Youtube Hub", -- Tên đã được thay đổi/tối ưu
+    LoadingTitle = "Example Hub",
+    LoadingSubtitle = "by 1_F0",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = nil,
+        FileName = "Youtubeexamplehub"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "vegax", 
+        RememberJoins = true 
+    },
+    KeySystem = false -- Đã tắt Key System theo yêu cầu trước đó
 }
 
-local MainTab = Window:CreateTab("🏠 Home", nil)
+-- Tạo Tab và Section
+local MainTab = Window:CreateTab("🏠 Home", nil) -- Title, Image
+local MainSection = MainTab:CreateSection("Main")
 
--- ⭐ Tất cả nút sẽ nằm ở đây (thuộc MainTab)
-local ControlSection = MainTab:CreateSection("Main Controls")
+-- ====================================================================
+-- 4. NÚT BẤM VÀ LOGIC INFINITE JUMP
+-- ====================================================================
 
--- =====================================================================================
--- 5. NÚT BẤM (ĐÃ CHUYỂN SANG MAIN TAB)
--- =====================================================================================
+local Button = MainSection:CreateButton({
+    Name = "Infinite Jump: OFF", -- Tên ban đầu
+    Callback = function(self) -- 'self' là đối tượng nút bấm được nhấn
 
-local Button = MainTab:CreateButton({
-    Name = "Aimbot: OFF",
-    Callback = function(self)
-        AIMBOT_ENABLED = not AIMBOT_ENABLED
-        self:SetName("Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF"))
-        showNotification(AIMBOT_ENABLED and "Aimbot đã bật!" or "Aimbot đã tắt!")
-    end
-})
+        -- Đảo ngược trạng thái Infinite Jump
+        _G.InfinJump = not _G.InfinJump
 
-ControlSection:CreateButton({
-    Name = "ESP: OFF",
-    Callback = function(self)
-        ESP_ENABLED = not ESP_ENABLED
-        self:SetName("ESP: " .. (ESP_ENABLED and "ON" or "OFF"))
-    end
-})
+        -- Cập nhật tên nút trên UI
+        local status = _G.InfinJump and "ON" or "OFF"
+        self:SetName("Infinite Jump: " .. status)
+        
+        -- Nếu đây là lần đầu tiên tính năng được bật, khởi tạo logic lắng nghe phím
+        if _G.InfinJumpStarted == nil then
+            _G.InfinJumpStarted = true -- Đảm bảo khối này chỉ chạy một lần
 
-ControlSection:CreateButton({
-    Name = "ESP Lines: OFF",
-    Callback = function(self)
-        ESPLINE_ENABLED = not ESPLINE_ENABLED
-        self:SetName("ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF"))
-    end
-})
+            local plr = game:GetService('Players').LocalPlayer
+            local m = plr:GetMouse()
 
-ControlSection:CreateButton({
-    Name = "Show FOV: OFF",
-    Callback = function(self)
-        FOV_ENABLED = not FOV_ENABLED
-        self:SetName("Show FOV: " .. (FOV_ENABLED and "ON" or "OFF"))
-    end
-})
-
-ControlSection:CreateButton({
-    Name = "Team Check: OFF",
-    Callback = function(self)
-        TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
-        self:SetName("Team Check: " .. (TEAMCHECK_ENABLED and "ON" or "OFF"))
-    end
-})
-
--- =====================================================================================
--- 6. GAME EVENTS
--- =====================================================================================
-
-for _, p in ipairs(Players:GetPlayers()) do
-    createESP(p)
-end
-
-Players.PlayerAdded:Connect(createESP)
-
-Players.PlayerRemoving:Connect(function(plr)
-    local data = ESPs[plr]
-    if data then
-        if data.Box then pcall(function() data.Box:Remove() end) end
-        if data.Line then pcall(function() data.Line:Remove() end) end
-        ESPs[plr] = nil
-    end
-end)
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.2)
-    Camera = Workspace.CurrentCamera
-end)
-
--- =====================================================================================
--- 7. RENDERSTEPPED LOOP
--- =====================================================================================
-
-RunService.RenderStepped:Connect(function()
-
-    if fovCircle then
-        fovCircle.Visible = FOV_ENABLED
-        if FOV_ENABLED then
-            fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            m.KeyDown:Connect(function(k)
+                -- Kiểm tra: Tính năng có bật VÀ Phím Spacebar có được nhấn không (k.KeyCode.Space)
+                if _G.InfinJump and k.KeyCode == Enum.KeyCode.Space then
+                    local humanoid = plr.Character and plr.Character:FindFirstChildOfClass('Humanoid')
+                    if humanoid then
+                        -- Buộc Humanoid chuyển sang trạng thái nhảy
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        task.wait() -- Chờ một chút
+                        -- Buộc Humanoid chuyển sang trạng thái Seated để reset trạng thái nhảy
+                        humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+                    end
+                end
+            end)
         end
-    end
+        
+        -- Thông báo trạng thái (dùng Rayfield:Notify)
+        Rayfield:Notify({
+            Title = "Infinite Jump",
+            Content = _G.InfinJump and "Đã kích hoạt Infinite Jump!" or "Đã tắt Infinite Jump.",
+            Duration = 3,
+        })
+    end,
+})
 
-    for plr, esp in pairs(ESPs) do
-        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = plr.Character.HumanoidRootPart
-            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+-- ====================================================================
+-- 5. THÔNG BÁO KHỞI CHẠY BAN ĐẦU (Tùy chọn)
+-- ====================================================================
 
-            local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
-            local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
-            local height = math.abs(topVec.Y - bottomVec.Y)
-
-            local color = (TEAMCHECK_ENABLED and plr.Team == LocalPlayer.Team)
-                and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-
-            if ESP_ENABLED and onScreen then
-                esp.Box.Size = Vector2.new(height*0.6, height)
-                esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                esp.Box.Color = color
-                esp.Box.Visible = true
-            else
-                esp.Box.Visible = false
+Rayfield:Notify({
+    Title = "You executed the script!",
+    Content = "very good gui",
+    Duration = 5,
+    Image = nil,
+    Actions = { 
+        Ignore = {
+            Name = "Okay!",
+            Callback = function()
+                print("Người dùng đã nhấp Okay!")
             end
+        }
+    }
+})
 
-            if ESPLINE_ENABLED and onScreen then
-                esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
-                esp.Line.To = Vector2.new(vec.X, vec.Y)
-                esp.Line.Color = color
-                esp.Line.Visible = true
-            else
-                esp.Line.Visible = false
-            end
-        else
-            if esp.Box then esp.Box.Visible = false end
-            if esp.Line then esp.Line.Visible = false end
+local Button = MainSection:CreateButton({ -- Đặt nút trong MainSection
+    Name = "Infinite Jump: OFF", -- Tên ban đầu
+    Callback = function(self) -- 'self' là đối tượng nút bấm
+
+        -- Đảo ngược trạng thái Infinite Jump
+        _G.InfinJump = not _G.InfinJump
+
+        -- Cập nhật tên nút trên UI
+        local status = _G.InfinJump and "ON" or "OFF"
+        self:SetName("Infinite Jump: " .. status)
+        
+        -- Nếu đây là lần đầu tiên tính năng được bật, khởi tạo logic lắng nghe phím
+        if _G.InfinJumpStarted == nil then
+            _G.InfinJumpStarted = true -- Khối này chỉ chạy một lần
+
+            local plr = game:GetService('Players').LocalPlayer
+            local m = plr:GetMouse()
+
+            m.KeyDown:Connect(function(k)
+                -- Kiểm tra: Tính năng có bật VÀ Phím Spacebar có được nhấn không (mã byte 32)
+                if _G.InfinJump and k:byte() == 32 then
+                    local humanoid = plr.Character and plr.Character:FindFirstChildOfClass('Humanoid')
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        task.wait() -- Dùng task.wait() hiện đại
+                        humanoid:ChangeState(Enum.HumanoidStateType.Seated) -- Reset trạng thái nhảy
+                    end
+                end
+            end)
         end
-    end
-
-    if AIMBOT_ENABLED then
-        local target = getClosestToFOV()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
-    end
-end)
-
-
+        
+        -- Thông báo trạng thái
+        Rayfield:Notify({
+            Title = "Youtube Hub",
+            Content = _G.InfinJump and "Infinite Jump Activated!" or "Infinite Jump Disabled.",
+            Duration = 5,
+        })
+    end,
+})
