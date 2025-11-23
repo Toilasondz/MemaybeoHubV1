@@ -1,7 +1,7 @@
 -- =====================================================================================
 -- 1. KHỞI TẠO RAYFIELD UI
 -- =====================================================================================
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
 
 -- =====================================================================================
 -- 2. KHAI BÁO DỊCH VỤ, BIẾN TOÀN CỤC & SETUP BAN ĐẦU
@@ -248,4 +248,5 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
 
