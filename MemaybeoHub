@@ -1,5 +1,11 @@
---== PC RBLX v1.8 - GIAO DIỆN KHANHLY STYLE & CHỨC NĂNG HOANGSON ==--
+-- =====================================================================================
+-- 1. KHỞI TẠO RAYFIELD UI
+-- =====================================================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
+-- =====================================================================================
+-- 2. KHAI BÁO DỊCH VỤ, BIẾN TOÀN CỤC & SETUP BAN ĐẦU
+-- =====================================================================================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -9,15 +15,16 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
---== STATES ==--
+-- Các biến kiểm soát tính năng
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false -- Biến này kiểm soát việc script có chạy hay không (dùng cho CloseBtn)
 
---== FOV SETUP (Giữ nguyên) ==--
+local ESPs = {}
+
+-- Thiết lập FOV Circle (sử dụng thư viện Drawing)
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -33,9 +40,21 @@ do
     end
 end
 
---== ESP SETUP (Giữ nguyên) ==--
-local ESPs = {}
+-- =====================================================================================
+-- 3. CÁC HÀM HỖ TRỢ
+-- =====================================================================================
 
+-- Hàm hiển thị thông báo (sử dụng Rayfield:Notify)
+local function showNotification(msg)
+    Rayfield:Notify({
+        Title = "MeMayBeo Hub",
+        Content = msg,
+        Duration = 3,
+        Image = nil
+    })
+end
+
+-- Hàm tạo ESP cho người chơi mới
 local function createESP(plr)
     if not plr or plr == LocalPlayer then return end
     if ESPs[plr] then return end
@@ -58,20 +77,7 @@ local function createESP(plr)
     end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do
-    createESP(p)
-end
-Players.PlayerAdded:Connect(createESP)
-Players.PlayerRemoving:Connect(function(plr)
-    local data = ESPs[plr]
-    if data then
-        if data.Box then pcall(function() data.Box:Remove() end) end
-        if data.Line then pcall(function() data.Line:Remove() end) end
-        ESPs[plr] = nil
-    end
-end)
-
---== CORE FUNCTIONS (Giữ nguyên) ==--
+-- Hàm kiểm tra khả năng nhìn thấy (Visibility Check)
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -82,6 +88,7 @@ local function isVisible(part)
     return hit and hit:IsDescendantOf(part.Parent)
 end
 
+-- Hàm tìm mục tiêu gần nhất trong phạm vi FOV
 local function getClosestToFOV()
     if not AIMBOT_ENABLED then return nil end
     local closest, dist = nil, math.huge
@@ -106,383 +113,108 @@ local function getClosestToFOV()
     return closest
 end
 
---== KHANHLY STYLE GUI ==--
-local ScreenGui, MainFrame, TopBar, TopIcon, TopTitle, TopVersion, CloseBtn
-local ToggleBtn -- Nút mở/đóng menu nhỏ
-local MainTab, MainTabList
-local Notification
+-- =====================================================================================
+-- 4. SETUP RAYFIELD UI
+-- =====================================================================================
 
--- Tọa độ và kích thước dựa trên ảnh mẫu
-local GUI_SIZE = UDim2.new(0, 700, 0, 450)
-local MAIN_TAB_WIDTH = 120
+local Window = Rayfield:CreateWindow{
+    Name = "MeMayBeo",
+    LoadingTitle = "MeMayBeo Hub",
+    LoadingSubtitle = "by @hoangvanson_9k",
+    ConfigurationSaving = { Enabled = false, FolderName = nil, FileName = "MeMayBeo Hub" },
+    Discord = { Enabled = false, Invite = "vegax", RememberJoins = true },
+    KeySystem = false -- Đã vô hiệu hóa Key System
+}
 
-function showNotification(msg)
-    if GUI_CLOSED then return end
-    if not Notification or not Notification.Parent then
-        -- Vẫn cần đảm bảo GUI được tạo nếu chưa có
-    end
-    if not Notification then return end
-    Notification.Text = msg
-    Notification.Visible = true
-    task.delay(2, function()
-        if Notification then
-            Notification.Visible = false
-        end
-    end)
-end
+local MainTab = Window:CreateTab("🏠 Home", nil)
+local MainSection = MainTab:CreateSection("Main")
 
-local function buildGUI()
-    if ScreenGui and ScreenGui.Parent then 
-        if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
-        return 
-    end
+-- =====================================================================================
+-- 5. THÊM NÚT BẤM VÀO UI (Sử dụng MainSection)
+-- =====================================================================================
 
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "HoangSon_KhanhlyStyle_GUI"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = PlayerGui
-
-    -- Nút Toggle Menu (Nút nhỏ ở góc)
-    ToggleBtn = Instance.new("TextButton", ScreenGui)
-    ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
-    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) 
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.Font = Enum.Font.SourceSansBold
-    ToggleBtn.TextSize = 20
-    ToggleBtn.Text = "..." 
-    local cornerToggle = Instance.new("UICorner", ToggleBtn)
-    cornerToggle.CornerRadius = UDim.new(0, 5)
-
-    ToggleBtn.MouseButton1Click:Connect(function()
-        if GUI_CLOSED then return end
-        MainFrame.Visible = not MainFrame.Visible
-    end)
-
-
-    -- 1. MAIN FRAME (Khung chính)
-    MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = GUI_SIZE
-    MainFrame.Position = UDim2.new(0.5, -GUI_SIZE.Offset.X / 2, 0.5, -GUI_SIZE.Offset.Y / 2) 
-    MainFrame.BackgroundTransparency = 1
-    MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.Visible = false -- Mặc định ẩn
-
-    local BackgroundImage = Instance.new("ImageLabel", MainFrame)
-    BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
-    BackgroundImage.Image = "rbxassetid://9170251649" -- Hình nền bất kỳ
-    BackgroundImage.ScaleType = Enum.ScaleType.Stretch
-    BackgroundImage.ImageTransparency = 0.5
-    BackgroundImage.BackgroundTransparency = 1
-    local UICornerMain = Instance.new("UICorner", BackgroundImage)
-    UICornerMain.CornerRadius = UDim.new(0, 10)
-
-    local BackgroundOverlay = Instance.new("Frame", BackgroundImage)
-    BackgroundOverlay.Size = UDim2.new(1, 0, 1, 0)
-    BackgroundOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    BackgroundOverlay.BackgroundTransparency = 0.7 
-    
-    -- 2. TOP BAR (Thanh tiêu đề)
-    TopBar = Instance.new("Frame", BackgroundImage)
-    TopBar.Size = UDim2.new(1, 0, 0, 40)
-    TopBar.Position = UDim2.new(0, 0, 0, 0)
-    TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    TopBar.BackgroundTransparency = 0.7
-    TopBar.ZIndex = 2
-    
-    TopIcon = Instance.new("TextLabel", TopBar) -- Thay thế icon bằng text cho đơn giản
-    TopIcon.Size = UDim2.new(0, 30, 1, 0)
-    TopIcon.Position = UDim2.new(0, 5, 0, 0)
-    TopIcon.BackgroundTransparency = 1
-    TopIcon.Text = "" -- Biểu tượng giả định
-    TopIcon.Font = Enum.Font.SourceSans
-    TopIcon.TextSize = 24
-    
-    TopTitle = Instance.new("TextLabel", TopBar)
-    TopTitle.Size = UDim2.new(0.2, 0, 1, 0)
-    TopTitle.Position = UDim2.new(0, 35, 0, 0)
-    TopTitle.BackgroundTransparency = 1
-    TopTitle.Text = "HoangSon" -- Đổi tên GUI
-    TopTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TopTitle.Font = Enum.Font.GothamBold
-    TopTitle.TextSize = 18
-
-    TopVersion = Instance.new("TextLabel", TopBar)
-    TopVersion.Size = UDim2.new(0, 60, 0, 20)
-    TopVersion.Position = UDim2.new(0, 150, 0, 10)
-    TopVersion.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Màu xanh lá
-    TopVersion.Text = "v1.8"
-    TopVersion.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TopVersion.Font = Enum.Font.SourceSans
-    TopVersion.TextSize = 14
-    local UICornerVersion = Instance.new("UICorner", TopVersion)
-    UICornerVersion.CornerRadius = UDim.new(0, 4)
-
-    -- Nút đóng (X)
-    CloseBtn = Instance.new("TextButton", TopBar)
-    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -35, 0, 5)
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    CloseBtn.BackgroundTransparency = 0.5
-    CloseBtn.Text = "X"
-    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseBtn.Font = Enum.Font.SourceSans
-    CloseBtn.TextSize = 18
-    CloseBtn.ZIndex = 3
-
-    -- 3. TAB MENU (Bên trái)
-    MainTab = Instance.new("Frame", BackgroundImage)
-    MainTab.Size = UDim2.new(0, MAIN_TAB_WIDTH, 1, -40)
-    MainTab.Position = UDim2.new(0, 0, 0, 40)
-    MainTab.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    MainTab.BackgroundTransparency = 0.6
-    MainTab.ZIndex = 2
-    
-    MainTabList = Instance.new("UIListLayout", MainTab)
-    MainTabList.Padding = UDim.new(0, 5)
-    MainTabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    MainTabList.SortOrder = Enum.SortOrder.LayoutOrder
-
-    local TabButton = Instance.new("TextButton", MainTab)
-    TabButton.Size = UDim2.new(1, 0, 0, 30)
-    TabButton.BackgroundTransparency = 1
-    TabButton.Text = "Main"
-    TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TabButton.Font = Enum.Font.SourceSansBold
-    TabButton.TextSize = 16
-    
-    local TabIndicator = Instance.new("Frame", TabButton) -- Vạch sáng bên trái
-    TabIndicator.Size = UDim2.new(0, 3, 1, 0)
-    TabIndicator.Position = UDim2.new(0, 0, 0, 0)
-    TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-
-    -- 4. CONTENT FRAME (Bên phải)
-    local ContentFrame = Instance.new("Frame", BackgroundImage)
-    ContentFrame.Size = UDim2.new(1, -MAIN_TAB_WIDTH, 1, -40)
-    ContentFrame.Position = UDim2.new(0, MAIN_TAB_WIDTH, 0, 40)
-    ContentFrame.BackgroundTransparency = 1
-    ContentFrame.ZIndex = 2
-    ContentFrame.ClipsDescendants = true 
-
-    local ContentLayout = Instance.new("UIListLayout", ContentFrame)
-    ContentLayout.Padding = UDim.new(0, 10)
-    ContentLayout.FillDirection = Enum.FillDirection.Vertical
-    ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    ContentLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-    ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-
-    --== HÀM TẠO CONTROLS (CUSTOM) ==--
-    local function createToggle(text, enabledState, clickFunction, parent)
-        local frame = Instance.new("Frame", parent)
-        frame.Size = UDim2.new(1, -20, 0, 30)
-        frame.Position = UDim2.new(0, 10, 0, 0)
-        frame.BackgroundTransparency = 1
-        
-        local Title = Instance.new("TextLabel", frame)
-        Title.Size = UDim2.new(0.6, 0, 1, 0)
-        Title.BackgroundTransparency = 1
-        Title.Text = text
-        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Title.Font = Enum.Font.SourceSans
-        Title.TextSize = 16
-        Title.TextXAlignment = Enum.TextXAlignment.Left
-        
-        local Toggle = Instance.new("TextButton", frame)
-        Toggle.Size = UDim2.new(0.3, 0, 0.8, 0)
-        Toggle.Position = UDim2.new(0.7, 0, 0.1, 0)
-        Toggle.BackgroundColor3 = enabledState and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-        Toggle.Text = enabledState and "Bật" or "Tắt"
-        Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Toggle.Font = Enum.Font.SourceSansBold
-        Toggle.TextSize = 16
-        
-        local cornerToggle = Instance.new("UICorner", Toggle)
-        cornerToggle.CornerRadius = UDim.new(0, 5)
-
-        Toggle.MouseButton1Click:Connect(function()
-            if GUI_CLOSED then return end
-            clickFunction(Toggle)
-        end)
-        
-        return Toggle 
-    end
-
-    local function createButton(text, subText, clickFunction, parent)
-        local frame = Instance.new("Frame", parent)
-        frame.Size = UDim2.new(1, -20, 0, 40)
-        frame.Position = UDim2.new(0, 10, 0, 0)
-        frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        frame.BackgroundTransparency = 0.5
-        local cornerFrame = Instance.new("UICorner", frame)
-        cornerFrame.CornerRadius = UDim.new(0, 5)
-
-        local Button = Instance.new("TextButton", frame)
-        Button.Size = UDim2.new(1, 0, 1, 0)
-        Button.BackgroundTransparency = 1
-        Button.Text = text
-        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Button.Font = Enum.Font.SourceSansBold
-        Button.TextSize = 18
-        Button.TextXAlignment = Enum.TextXAlignment.Left
-        Button.Position = UDim2.new(0, 10, 0, -5)
-
-        local SubText = Instance.new("TextLabel", Button)
-        SubText.Size = UDim2.new(1, 0, 0, 15)
-        SubText.Position = UDim2.new(0, 0, 0, 20)
-        SubText.BackgroundTransparency = 1
-        SubText.Text = subText
-        SubText.TextColor3 = Color3.fromRGB(200, 200, 200)
-        SubText.Font = Enum.Font.SourceSans
-        SubText.TextSize = 14
-        SubText.TextXAlignment = Enum.TextXAlignment.Left
-
-        Button.MouseButton1Click:Connect(function()
-            if GUI_CLOSED then return end
-            clickFunction()
-        end)
-    end
-    
-    --== TẠO CÁC CONTROLS CHÍNH ==--
-
-    -- Toggle 1: Aimbot
-    local AimbotToggleBtn = createToggle("Aimbot Toggle (E)", AIMBOT_ENABLED, function(toggle)
+-- Nút Bật/Tắt Aimbot
+local BtnAimbot = MainSection:CreateButton({
+    Name = "Aimbot: OFF",
+    Callback = function(self)
         AIMBOT_ENABLED = not AIMBOT_ENABLED
-        toggle.Text = AIMBOT_ENABLED and "Bật" or "Tắt"
-        toggle.BackgroundColor3 = AIMBOT_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
-    end, ContentFrame)
-    
-    -- Toggle 2: ESP
-    local ESPToggleBtn = createToggle("ESP Box", ESP_ENABLED, function(toggle)
+        local status = AIMBOT_ENABLED and "ON" or "OFF"
+        self:SetName("Aimbot: " .. status)
+        showNotification(AIMBOT_ENABLED and "Aimbot đã được BẬT!" or "Aimbot đã được TẮT!")
+    end,
+})
+
+-- Nút Bật/Tắt ESP Box
+local BtnToggleESP = MainSection:CreateButton({
+    Name = "ESP: OFF",
+    Callback = function(self)
         ESP_ENABLED = not ESP_ENABLED
-        toggle.Text = ESP_ENABLED and "Bật" or "Tắt"
-        toggle.BackgroundColor3 = ESP_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    end, ContentFrame)
-    
-    -- Toggle 3: ESP Lines
-    local ESPLinesToggleBtn = createToggle("ESP Lines", ESPLINE_ENABLED, function(toggle)
+        local status = ESP_ENABLED and "ON" or "OFF"
+        self:SetName("ESP: " .. status)
+    end,
+})
+
+-- Nút Bật/Tắt ESP Lines
+local BtnToggleESPLines = MainSection:CreateButton({
+    Name = "ESP Lines: OFF",
+    Callback = function(self)
         ESPLINE_ENABLED = not ESPLINE_ENABLED
-        toggle.Text = ESPLINE_ENABLED and "Bật" or "Tắt"
-        toggle.BackgroundColor3 = ESPLINE_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    end, ContentFrame)
+        local status = ESPLINE_ENABLED and "ON" or "OFF"
+        self:SetName("ESP Lines: " .. status)
+    end,
+})
 
-    -- Toggle 4: Show FOV
-    local FOVToggleBtn = createToggle("Show FOV Circle", FOV_ENABLED, function(toggle)
+-- Nút Bật/Tắt FOV Circle
+local BtnToggleFOV = MainSection:CreateButton({
+    Name = "Show FOV: OFF",
+    Callback = function(self)
         FOV_ENABLED = not FOV_ENABLED
-        toggle.Text = FOV_ENABLED and "Bật" or "Tắt"
-        toggle.BackgroundColor3 = FOV_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    end, ContentFrame)
+        local status = FOV_ENABLED and "ON" or "OFF"
+        self:SetName("Show FOV: " .. status)
+    end,
+})
 
-    -- Toggle 5: Team Check
-    local TeamCheckToggleBtn = createToggle("Team Check", TEAMCHECK_ENABLED, function(toggle)
+-- Nút Bật/Tắt Team Check
+local BtnToggleTeamCheck = MainSection:CreateButton({
+    Name = "Team Check: OFF",
+    Callback = function(self)
         TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
-        toggle.Text = TEAMCHECK_ENABLED and "Bật" or "Tắt"
-        toggle.BackgroundColor3 = TEAMCHECK_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    end, ContentFrame)
+        local status = TEAMCHECK_ENABLED and "ON" or "OFF"
+        self:SetName("Team Check: " .. status)
+    end,
+})
 
-    -- Button Custom Copy (HOANGSON)
-    createButton("HOANGSON COPY", "@hoangvanson_9k", function()
-        local textToCopy = "@hoangvanson_9k"
-        local copySuccessful = false
+-- =====================================================================================
+-- 6. XỬ LÝ SỰ KIỆN GAME (GAME EVENTS)
+-- =====================================================================================
 
-        pcall(function()
-            setclipboard(textToCopy) 
-            copySuccessful = true
-        end)
-
-        if copySuccessful then
-             print("HOANGSON: Đã copy thành công: " .. textToCopy)
-             showNotification("ĐÃ COPY: " .. textToCopy)
-        else
-             print("HOANGSON: KHÔNG THỂ COPY. Executor chặn setclipboard().")
-             showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
-        end
-    end, ContentFrame)
-
-
-    -- 5. NOTIFICATION
-    Notification = Instance.new("TextLabel", ScreenGui)
-    Notification.Size = UDim2.new(0,200,0,30)
-    Notification.Position = UDim2.new(1,-210,1,-40)
-    Notification.BackgroundTransparency = 0.3
-    Notification.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    Notification.TextColor3 = Color3.fromRGB(255,255,255)
-    Notification.TextScaled = true
-    Notification.Visible = false
-
-    -- EVENT HANDLERS
-    CloseBtn.MouseButton1Click:Connect(function()
-        AIMBOT_ENABLED = false
-        ESP_ENABLED = false
-        ESPLINE_ENABLED = false
-        FOV_ENABLED = false
-        TEAMCHECK_ENABLED = false
-        GUI_CLOSED = true
-
-        MainFrame.Visible = false
-        ToggleBtn.Visible = false
-        ScreenGui.Enabled = false
-
-        if fovCircle then fovCircle.Visible = false end
-        for _, esp in pairs(ESPs) do
-            if esp.Box then esp.Box.Visible = false end
-            if esp.Line then esp.Line.Visible = false end
-        end
-    end)
-    
+-- Tạo ESP cho tất cả người chơi hiện tại
+for _, p in ipairs(Players:GetPlayers()) do
+    createESP(p)
 end
-
-buildGUI()
-
---== INPUT & CHARACTER EVENTS (Giữ nguyên) ==--
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if GUI_CLOSED then return end
-    
-    -- Phím E (Toggle Aimbot)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
-        AIMBOT_ENABLED = not AIMBOT_ENABLED
-        -- Cập nhật trạng thái trên GUI nếu có thể
-        if AimbotToggleBtn and AimbotToggleBtn.Parent then
-            AimbotToggleBtn.Text = AIMBOT_ENABLED and "Bật" or "Tắt"
-            AimbotToggleBtn.BackgroundColor3 = AIMBOT_ENABLED and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-        end
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
-    
-    -- Phím K (Toggle Menu)
-    elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
-        if MainFrame then
-            MainFrame.Visible = not MainFrame.Visible
-        else
-            pcall(buildGUI)
-        end
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(function(plr)
+    local data = ESPs[plr]
+    if data then
+        if data.Box then pcall(function() data.Box:Remove() end) end
+        if data.Line then pcall(function() data.Line:Remove() end) end
+        ESPs[plr] = nil
     end
 end)
 
+-- Cập nhật thông tin khi nhân vật được thêm vào (Spawn)
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.25)
     Camera = Workspace.CurrentCamera
-    PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-    if not ScreenGui or not ScreenGui.Parent then
-        pcall(buildGUI)
-    else
-        if ScreenGui.Parent ~= PlayerGui then
-            ScreenGui.Parent = PlayerGui
-        end
-    end
 end)
 
---== RENDER LOOP (Giữ nguyên) ==--
--- Đảm bảo các Drawing objects (FOV, ESP) vẫn được cập nhật liên tục
+-- =====================================================================================
+-- 7. VÒNG LẶP CHÍNH (RENDERSTEPPED - LƯU Ý VỀ HIỆU SUẤT)
+-- =====================================================================================
 
 RunService.RenderStepped:Connect(function()
-    if GUI_CLOSED then
-        if fovCircle then fovCircle.Visible = false end
-        return
-    end
-
+    
+    -- 7a. CẬP NHẬT FOV CIRCLE
     if fovCircle then
         if FOV_ENABLED and Camera then
             fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -492,48 +224,50 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
+    -- 7b. CẬP NHẬT ESP
     for plr, esp in pairs(ESPs) do
         if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
             local hrp = plr.Character.HumanoidRootPart
             local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
-            local boxColor = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
+            -- Tính toán chiều cao Box
+            local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
+            local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
+            local height = math.abs(topVec.Y - bottomVec.Y)
+            local espColor = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
                 and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-
-            -- ESP BOX
+            
+            -- Hiển thị Box
             if ESP_ENABLED and onScreen then
-                local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
-                local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
-                local height = math.abs(topVec.Y - bottomVec.Y)
-                
                 if esp.Box then
                     esp.Box.Size = Vector2.new(height*0.6, height)
                     esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                    esp.Box.Color = boxColor
+                    esp.Box.Color = espColor
                     esp.Box.Visible = true
                 end
             else
                 if esp.Box then esp.Box.Visible = false end
             end
 
-            -- ESP LINES
+            -- Hiển thị Line
             if ESPLINE_ENABLED and onScreen then
                 if esp.Line then
                     esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
                     esp.Line.To = Vector2.new(vec.X, vec.Y)
-                    esp.Line.Color = boxColor
+                    esp.Line.Color = espColor
                     esp.Line.Visible = true
                 end
             else
                 if esp.Line then esp.Line.Visible = false end
             end
         else
+            -- Ẩn ESP nếu nhân vật không tồn tại
             if esp.Box then esp.Box.Visible = false end
             if esp.Line then esp.Line.Visible = false end
         end
     end
 
-    -- AIMBOT
+    -- 7c. LOGIC AIMBOT
     if AIMBOT_ENABLED and Camera then
         local target = getClosestToFOV()
         if target then
