@@ -35,11 +35,8 @@ local Window = Rayfield:CreateWindow{
 local MainTab = Window:CreateTab("🏠 Home", nil) -- Title, Image
 local MainSection = MainTab:CreateSection("Main")
 
--- ====================================================================
--- 4. NÚT BẤM VÀ LOGIC INFINITE JUMP
--- ====================================================================
 
-local Button = MainSection:CreateButton({
+local Button = MainTab:CreateButton({
     Name = "Infinite Jump: OFF", -- Tên ban đầu
     Callback = function(self) -- 'self' là đối tượng nút bấm được nhấn
 
@@ -139,3 +136,4 @@ local Button = MainSection:CreateButton({ -- Đặt nút trong MainSection
         })
     end,
 })
+
