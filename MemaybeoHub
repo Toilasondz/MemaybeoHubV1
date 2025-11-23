@@ -128,7 +128,7 @@ local ControlSection = MainTab:CreateSection("Main Controls")
 -- 5. NÚT BẤM (ĐÃ CHUYỂN SANG MAIN TAB)
 -- =====================================================================================
 
-ControlSection:CreateButton({
+local Button = MainTab:CreateButton({
     Name = "Aimbot: OFF",
     Callback = function(self)
         AIMBOT_ENABLED = not AIMBOT_ENABLED
@@ -248,3 +248,4 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
