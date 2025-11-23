@@ -1,14 +1,13 @@
--- MeMayBeo - Sửa lỗi & tối ưu cho Flick
--- Yêu cầu: Rayfield + executor hỗ trợ Drawing
+-- =====================================================================================
+-- 1. KHỞI TẠO RAYFIELD UI
+-- =====================================================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- 0. Delay nhỏ để Rayfield load tốt trên mobile
-task.wait(0.3)
-
--- 1. Khởi tạo Rayfield (bản ổn định)
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
-
--- 2. Services & globals
+-- =====================================================================================
+-- 2. KHAI BÁO DỊCH VỤ, BIẾN TOÀN CỤC & SETUP BAN ĐẦU
+-- =====================================================================================
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
@@ -16,6 +15,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Các biến kiểm soát tính năng
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
@@ -23,16 +23,15 @@ local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
 
 local ESPs = {}
-local FOV_RADIUS = 90
 
--- Try create Drawing circle for FOV
+-- Thiết lập FOV Circle (sử dụng thư viện Drawing)
 local fovCircle
 do
-    local ok, c = pcall(function() return Drawing.new("Circle") end)
-    if ok and c then
-        fovCircle = c
+    local success, circle = pcall(function() return Drawing.new("Circle") end)
+    if success and circle then
+        fovCircle = circle
         fovCircle.Visible = false
-        fovCircle.Radius = FOV_RADIUS
+        fovCircle.Radius = 90
         fovCircle.Thickness = 2
         fovCircle.Color = Color3.fromRGB(255,255,255)
         fovCircle.Filled = false
@@ -41,34 +40,27 @@ do
     end
 end
 
--- Helpers
+-- =====================================================================================
+-- 3. CÁC HÀM HỖ TRỢ
+-- =====================================================================================
+
 local function showNotification(msg)
-    pcall(function()
-        Rayfield:Notify({
-            Title = "MeMayBeo Hub",
-            Content = msg,
-            Duration = 3,
-            Image = nil
-        })
-    end)
+    Rayfield:Notify({
+        Title = "MeMayBeo Hub",
+        Content = msg,
+        Duration = 3,
+    })
 end
 
-local function safeRemoveDrawing(obj)
-    if not obj then return end
-    pcall(function() obj:Remove() end)
-end
-
--- Create ESP entry for player
 local function createESP(plr)
     if not plr or plr == LocalPlayer then return end
     if ESPs[plr] then return end
 
-    local ok1, box = pcall(function() return Drawing.new("Square") end)
-    local ok2, line = pcall(function() return Drawing.new("Line") end)
-
+    local successBox, box = pcall(function() return Drawing.new("Square") end)
+    local successLine, line = pcall(function() return Drawing.new("Line") end)
     ESPs[plr] = {
-        Box = ok1 and box or nil,
-        Line = ok2 and line or nil
+        Box = successBox and box or nil,
+        Line = successLine and line or nil
     }
 
     if ESPs[plr].Box then
@@ -82,281 +74,177 @@ local function createESP(plr)
     end
 end
 
--- Improved visibility check using RaycastParams
 local function isVisible(part)
-    if not part or not Camera then return false end
+    if not part then return false end
     local origin = Camera.CFrame.Position
-    local direction = (part.Position - origin)
-    local mag = direction.Magnitude
-    if mag == 0 then return true end
-
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {LocalPlayer.Character}
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.IgnoreWater = true
-
-    local result = Workspace:Raycast(origin, direction.Unit * math.clamp(mag, 0.1, 4000), params)
-    if not result then
-        return true
-    end
-    if result.Instance and part and result.Instance:IsDescendantOf(part.Parent) then
-        return true
-    end
-    return false
+    local dir = (part.Position - origin)
+    if dir.Magnitude == 0 then return true end
+    local ray = Ray.new(origin, dir.Unit * dir.Magnitude)
+    local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
+    return hit and hit:IsDescendantOf(part.Parent)
 end
 
--- Find closest valid target within FOV circle
 local function getClosestToFOV()
-    if not AIMBOT_ENABLED or not Camera then return nil end
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    local closestPart = nil
-    local bestDist = math.huge
-
+    if not AIMBOT_ENABLED then return nil end
+    local closest, dist = nil, math.huge
     for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character.Parent then
-            local head = plr.Character:FindFirstChild("Head") or plr.Character:FindFirstChild("HumanoidRootPart")
-            if head and head.Position then
-                if TEAMCHECK_ENABLED then
-                    if plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
-                        continue
-                    end
-                end
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+            if TEAMCHECK_ENABLED and plr.Team == LocalPlayer.Team then continue end
 
-                local vec = Camera:WorldToViewportPoint(head.Position)
-                -- 'vec.Z > 0' indicates in front of camera
-                if vec.Z > 0 then
-                    local screenPos = Vector2.new(vec.X, vec.Y)
-                    local mag = (screenPos - center).Magnitude
-                    if mag <= (fovCircle and fovCircle.Radius or FOV_RADIUS) and mag < bestDist then
-                        if isVisible(head) then
-                            closestPart = head
-                            bestDist = mag
-                        end
+            local head = plr.Character.Head
+            local vec, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if mag < (fovCircle and fovCircle.Radius or 90) and mag < dist then
+                    if isVisible(head) then
+                        closest = head
+                        dist = mag
                     end
                 end
             end
         end
     end
-
-    return closestPart
+    return closest
 end
 
--- 4. Rayfield UI setup
+-- =====================================================================================
+-- 4. SETUP RAYFIELD UI
+-- =====================================================================================
+
 local Window = Rayfield:CreateWindow{
     Name = "MeMayBeo",
     LoadingTitle = "MeMayBeo Hub",
     LoadingSubtitle = "by @hoangvanson_9k",
     ConfigurationSaving = { Enabled = false },
-    Discord = { Enabled = false },
     KeySystem = false
 }
 
-local MainTab = Window:CreateTab("🏠 Home")
-local MainSection = MainTab:CreateSection("Main")
+local MainTab = Window:CreateTab("🏠 Home", nil)
 
--- Add a slider for aim smoothness
-local aimSmooth = 0.35
-MainSection:CreateSlider({
-    Name = "Aim Smooth",
-    Range = {0, 1},
-    Increment = 0.05,
-    Suffix = "",
-    CurrentValue = aimSmooth,
-    Flag = "aimSmooth",
-    Callback = function(v)
-        aimSmooth = v
+-- ⭐ Tất cả nút sẽ nằm ở đây (thuộc MainTab)
+local ControlSection = MainTab:CreateSection("Main Controls")
+
+-- =====================================================================================
+-- 5. NÚT BẤM (ĐÃ CHUYỂN SANG MAIN TAB)
+-- =====================================================================================
+
+ControlSection:CreateButton({
+    Name = "Aimbot: OFF",
+    Callback = function(self)
+        AIMBOT_ENABLED = not AIMBOT_ENABLED
+        self:SetName("Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF"))
+        showNotification(AIMBOT_ENABLED and "Aimbot đã bật!" or "Aimbot đã tắt!")
     end
 })
 
--- FOV radius slider
-MainSection:CreateSlider({
-    Name = "FOV Radius",
-    Range = {20, 500},
-    Increment = 5,
-    Suffix = "px",
-    CurrentValue = FOV_RADIUS,
-    Flag = "fovRadius",
-    Callback = function(v)
-        FOV_RADIUS = v
-        if fovCircle then fovCircle.Radius = v end
+ControlSection:CreateButton({
+    Name = "ESP: OFF",
+    Callback = function(self)
+        ESP_ENABLED = not ESP_ENABLED
+        self:SetName("ESP: " .. (ESP_ENABLED and "ON" or "OFF"))
     end
 })
 
--- Buttons / Toggles
-MainSection:CreateToggle({
-    Name = "Aimbot",
-    CurrentValue = false,
-    Flag = "aimToggle",
-    Callback = function(val)
-        AIMBOT_ENABLED = val
-        showNotification(val and "Aimbot BẬT" or "Aimbot TẮT")
+ControlSection:CreateButton({
+    Name = "ESP Lines: OFF",
+    Callback = function(self)
+        ESPLINE_ENABLED = not ESPLINE_ENABLED
+        self:SetName("ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF"))
     end
 })
 
-MainSection:CreateToggle({
-    Name = "ESP",
-    CurrentValue = false,
-    Flag = "espToggle",
-    Callback = function(val)
-        ESP_ENABLED = val
+ControlSection:CreateButton({
+    Name = "Show FOV: OFF",
+    Callback = function(self)
+        FOV_ENABLED = not FOV_ENABLED
+        self:SetName("Show FOV: " .. (FOV_ENABLED and "ON" or "OFF"))
     end
 })
 
-MainSection:CreateToggle({
-    Name = "ESP Lines",
-    CurrentValue = false,
-    Flag = "espLineToggle",
-    Callback = function(val)
-        ESPLINE_ENABLED = val
+ControlSection:CreateButton({
+    Name = "Team Check: OFF",
+    Callback = function(self)
+        TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
+        self:SetName("Team Check: " .. (TEAMCHECK_ENABLED and "ON" or "OFF"))
     end
 })
 
-MainSection:CreateToggle({
-    Name = "Show FOV",
-    CurrentValue = false,
-    Flag = "fovToggle",
-    Callback = function(val)
-        FOV_ENABLED = val
-    end
-})
+-- =====================================================================================
+-- 6. GAME EVENTS
+-- =====================================================================================
 
-MainSection:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = false,
-    Flag = "teamCheck",
-    Callback = function(val)
-        TEAMCHECK_ENABLED = val
-    end
-})
-
--- 5. Events: player join/leave and character handling
 for _, p in ipairs(Players:GetPlayers()) do
     createESP(p)
 end
-Players.PlayerAdded:Connect(function(plr)
-    createESP(plr)
-end)
+
+Players.PlayerAdded:Connect(createESP)
 
 Players.PlayerRemoving:Connect(function(plr)
     local data = ESPs[plr]
     if data then
-        safeRemoveDrawing(data.Box)
-        safeRemoveDrawing(data.Line)
+        if data.Box then pcall(function() data.Box:Remove() end) end
+        if data.Line then pcall(function() data.Line:Remove() end) end
         ESPs[plr] = nil
     end
 end)
 
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(0.1)
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.2)
     Camera = Workspace.CurrentCamera
 end)
 
--- 6. ESP updater (lower frequency to reduce lag)
-spawn(function()
-    while true do
-        if ESP_ENABLED and Camera then
-            for plr, esp in pairs(ESPs) do
-                if not plr or not plr.Character or not esp then
-                    if esp and esp.Box then esp.Box.Visible = false end
-                    if esp and esp.Line then esp.Line.Visible = false end
-                    goto cont
-                end
+-- =====================================================================================
+-- 7. RENDERSTEPPED LOOP
+-- =====================================================================================
 
-                local hrp = plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("UpperTorso") or plr.Character:FindFirstChild("Torso")
-                if hrp and Camera then
-                    local pos3 = hrp.Position
-                    local top3 = pos3 + Vector3.new(0, 3.5, 0)
-                    local bottom3 = pos3 - Vector3.new(0, 3.5, 0)
-                    local topVec = Camera:WorldToViewportPoint(top3)
-                    local bottomVec = Camera:WorldToViewportPoint(bottom3)
-                    local vec = Camera:WorldToViewportPoint(pos3)
-                    local onScreen = topVec.Z > 0 or bottomVec.Z > 0
+RunService.RenderStepped:Connect(function()
 
-                    local height = math.abs(topVec.Y - bottomVec.Y)
-                    local width = height * 0.6
-                    local espColor = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-
-                    if onScreen and ESP_ENABLED then
-                        if esp.Box then
-                            esp.Box.Size = Vector2.new(width, height)
-                            esp.Box.Position = Vector2.new(vec.X - width/2, vec.Y - height/2)
-                            esp.Box.Color = espColor
-                            esp.Box.Visible = true
-                        end
-                    else
-                        if esp.Box then esp.Box.Visible = false end
-                    end
-
-                    if onScreen and ESPLINE_ENABLED then
-                        if esp.Line then
-                            esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
-                            esp.Line.To = Vector2.new(vec.X, vec.Y)
-                            esp.Line.Color = espColor
-                            esp.Line.Visible = true
-                        end
-                    else
-                        if esp.Line then esp.Line.Visible = false end
-                    end
-                else
-                    if esp.Box then esp.Box.Visible = false end
-                    if esp.Line then esp.Line.Visible = false end
-                end
-
-                ::cont::
-            end
-        else
-            -- hide all
-            for _, esp in pairs(ESPs) do
-                if esp.Box then esp.Box.Visible = false end
-                if esp.Line then esp.Line.Visible = false end
-            end
-        end
-
-        task.wait(0.08) -- ~12.5 FPS updates for ESP
-    end
-end)
-
--- 7. Render loop for smooth aim & FOV
-RunService.RenderStepped:Connect(function(delta)
-    Camera = Workspace.CurrentCamera
-
-    -- Update FOV circle quickly
     if fovCircle then
-        if FOV_ENABLED and Camera then
+        fovCircle.Visible = FOV_ENABLED
+        if FOV_ENABLED then
             fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-            fovCircle.Visible = true
-        else
-            fovCircle.Visible = false
         end
     end
 
-    -- Smooth aimbot
-    if AIMBOT_ENABLED and Camera then
-        local targetPart = getClosestToFOV()
-        if targetPart and targetPart.Position then
-            local camPos = Camera.CFrame.Position
-            local desired = CFrame.new(camPos, targetPart.Position)
-            local alpha = aimSmooth -- from slider
-            -- scale by frame delta to keep consistent across FPS
-            Camera.CFrame = Camera.CFrame:lerp(desired, math.clamp(alpha * (delta * 60), 0, 1))
+    for plr, esp in pairs(ESPs) do
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = plr.Character.HumanoidRootPart
+            local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+            local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
+            local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
+            local height = math.abs(topVec.Y - bottomVec.Y)
+
+            local color = (TEAMCHECK_ENABLED and plr.Team == LocalPlayer.Team)
+                and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+            if ESP_ENABLED and onScreen then
+                esp.Box.Size = Vector2.new(height*0.6, height)
+                esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
+                esp.Box.Color = color
+                esp.Box.Visible = true
+            else
+                esp.Box.Visible = false
+            end
+
+            if ESPLINE_ENABLED and onScreen then
+                esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
+                esp.Line.To = Vector2.new(vec.X, vec.Y)
+                esp.Line.Color = color
+                esp.Line.Visible = true
+            else
+                esp.Line.Visible = false
+            end
+        else
+            if esp.Box then esp.Box.Visible = false end
+            if esp.Line then esp.Line.Visible = false end
+        end
+    end
+
+    if AIMBOT_ENABLED then
+        local target = getClosestToFOV()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
         end
     end
 end)
-
--- 8. Cleanup
-local function cleanupAll()
-    if fovCircle then
-        pcall(function() fovCircle:Remove() end)
-        fovCircle = nil
-    end
-    for plr, data in pairs(ESPs) do
-        safeRemoveDrawing(data.Box)
-        safeRemoveDrawing(data.Line)
-        ESPs[plr] = nil
-    end
-end
-
-_G.MeMayBeo_Cleanup = cleanupAll
-
--- End
