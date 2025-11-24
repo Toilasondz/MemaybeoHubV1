@@ -17,15 +17,15 @@ local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local RAINBOW_FOV_ENABLED = false 
+local RAINBOW_FOV_ENABLED = false
 local GUI_CLOSED = false
 
 --== CÀI ĐẶT MÀU SẮC ==--
-local ENEMY_COLOR = Color3.fromRGB(255, 255, 255)        -- TRẮNG (Cho ESP Box và Line)
-local TEAM_COLOR = Color3.fromRGB(0, 255, 0)             -- XANH LÁ
-local FOV_COLOR = Color3.fromRGB(0, 255, 0)              -- XANH LÁ CÂY (Mặc định)
-local INDEX_COLOR_ENEMY = Color3.fromRGB(255, 0, 0)      -- ĐỎ (Cho Index Text của Enemy)
-local SLIDER_COLOR = Color3.fromRGB(0, 255, 0)           -- MÀU XANH LÁ CÂY CHO SLIDER
+local ENEMY_COLOR = Color3.fromRGB(255, 255, 255)         -- TRẮNG (Cho ESP Box và Line)
+local TEAM_COLOR = Color3.fromRGB(0, 255, 0)              -- XANH LÁ
+local FOV_COLOR = Color3.fromRGB(0, 255, 0)               -- XANH LÁ CÂY (Mặc định)
+local INDEX_COLOR_ENEMY = Color3.fromRGB(255, 0, 0)       -- ĐỎ (Cho Index Text của Enemy)
+local SLIDER_COLOR = Color3.fromRGB(0, 255, 0)            -- MÀU XANH LÁ CÂY CHO SLIDER
 
 --== CÀI ĐẶT FOV MỚI ==--
 local FOV_MIN = 30
@@ -39,6 +39,7 @@ local CustomCopyBtn
 local Notification
 local PlayerCountLabel
 local FPSMover
+local TitleBar -- Thêm TitleBar vào định nghĩa toàn cục
 
 -- [NEW SLIDER ELEMENTS]
 local FovSliderLabel
@@ -49,6 +50,11 @@ local SliderThumb
 
 --== GLOBAL DRAG STATE ==--
 local isDraggingSlider = false -- Biến toàn cục theo dõi trạng thái kéo (HOLD state)
+
+-- [NEW DRAG STATE FOR FRAME]
+local isDraggingFrame = false -- Biến trạng thái kéo Frame
+local dragStartPos = nil      -- Vị trí chuột khi bắt đầu kéo Frame
+local menuStartPos = nil      -- Vị trí Frame khi bắt đầu kéo
 
 --== FOV SETUP ==--
 local fovCircle
@@ -284,6 +290,58 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 
+--== LOGIC KÉO FRAME TÙY CHỈNH (CHỈ KÉO Ở TITLE BAR) ==--
+
+-- BƯỚC 1: Bắt đầu kéo Frame
+local function startFrameDrag(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingFrame = true
+        
+        -- Lưu vị trí chuột hiện tại (tính bằng pixel trên màn hình)
+        dragStartPos = input.Position
+        
+        -- Lưu vị trí hiện tại của Frame (tính theo tỷ lệ AnchorPoint)
+        menuStartPos = Frame.Position
+        
+        -- Tăng ZIndex để đảm bảo Frame luôn nằm trên cùng khi đang kéo
+        Frame.ZIndex = 10 
+    end
+end
+
+-- BƯỚC 2: Xử lý kéo Frame
+local function processFrameDrag(input)
+    if isDraggingFrame then
+        -- Tính toán độ dịch chuyển (delta) của chuột
+        local delta = input.Position - dragStartPos
+        
+        -- Cập nhật vị trí của Frame (sử dụng Offset)
+        Frame.Position = UDim2.new(
+            menuStartPos.X.Scale,
+            menuStartPos.X.Offset + delta.X,
+            menuStartPos.Y.Scale,
+            menuStartPos.Y.Offset + delta.Y
+        )
+    end
+end
+
+-- BƯỚC 3: Dừng kéo Frame (Lắng nghe toàn cục để bắt khi nhả chuột ngoài TitleBar)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if isDraggingFrame then
+            isDraggingFrame = false
+            Frame.ZIndex = Frame.ZIndex - 5 -- Trả lại ZIndex bình thường (Giả sử ZIndex ban đầu là 5, 10 - 5 = 5)
+        end
+    end
+end)
+
+-- BƯỚC 4: Lắng nghe Mouse Movement cho Frame Drag
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingFrame and input.UserInputType == Enum.UserInputType.MouseMovement then
+        processFrameDrag(input)
+    end
+end)
+
+
 --== GUI BUILDER FUNCTION ==--
 local function updateButtonText(btn, featureName, isEnabled, icon)
     local status = isEnabled and "BẬT" or "TẮT"
@@ -332,7 +390,9 @@ local function buildGUI()
     local cornerToggle = Instance.new("UICorner", ToggleBtn)
     cornerToggle.CornerRadius = UDim.new(0, 5)
 
-    -- Logic Kéo thả cho ToggleBtn
+    -- Logic Kéo thả cho ToggleBtn (GIỮ NGUYÊN)
+
+    
     local draggingBtn = false
     local dragStartBtn
     local startPosBtn
@@ -372,7 +432,7 @@ local function buildGUI()
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
     Frame.BackgroundTransparency = 0.25
     Frame.Active = true
-    Frame.Draggable = true
+    Frame.Draggable = false -- [ĐÃ THAY ĐỔI] Tắt kéo cho toàn bộ Frame
     Frame.Visible = false
     Frame.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
@@ -389,7 +449,8 @@ local function buildGUI()
         NumberSequenceKeypoint.new(1, 0.25)
     }
 
-    local TitleBar = Instance.new("TextLabel", Frame)
+    -- TITLE BAR (VÙNG KÉO)
+    TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
     TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
     TitleBar.Text = "MeMayBeo Hub" -- Dịch Title
@@ -397,6 +458,11 @@ local function buildGUI()
     TitleBar.Font = Enum.Font.SourceSansBold
     TitleBar.TextSize = 29
     TitleBar.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    TitleBar.Active = true -- [ĐÃ THÊM] Đảm bảo TitleBar nhận Input
+    
+    -- [LOGIC KÉO TÙY CHỈNH CHO TITLE BAR]
+    TitleBar.InputBegan:Connect(startFrameDrag)
+
 
     local InfoLabel1 = Instance.new("TextLabel", Frame)
     InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
@@ -519,16 +585,17 @@ local function buildGUI()
     fillCorner.CornerRadius = UDim.new(0, 4)
 
     -- 5. Thumb (Nút kéo, hình tròn màu trắng)
-    SliderThumb = Instance.new("ImageLabel", SliderContainer)
-    SliderThumb.Size = UDim2.new(0, 16, 0, 16)
-    SliderThumb.Image = "rbxassetid://6250275811" -- Icon hình tròn trắng
-    SliderThumb.BackgroundTransparency = 1
-    SliderThumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    SliderThumb.Active = true 
-    SliderThumb.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
-    
-    local thumbCorner = Instance.new("UICorner", SliderThumb)
-    thumbCorner.CornerRadius = UDim.new(0.5, 0) -- Làm cho nó tròn
+SliderThumb = Instance.new("Frame", SliderContainer)
+SliderThumb.Size = UDim2.new(0, 18, 0, 18)
+SliderThumb.Position = UDim2.new(0, 0, 0.5, 0)
+SliderThumb.AnchorPoint = Vector2.new(0.5, 0.5)
+SliderThumb.BackgroundColor3 = Color3.fromRGB(255,255,255)
+SliderThumb.BorderSizePixel = 0
+SliderThumb.Active = true
+
+local thumbCorner = Instance.new("UICorner", SliderThumb)
+thumbCorner.CornerRadius = UDim.new(1, 0)
+
     
     -- Khởi tạo vị trí ban đầu của Thumb
     updateFovSlider(getFovRatio())
@@ -819,6 +886,7 @@ RunService.RenderStepped:Connect(function()
             end
             
             -- ẨN Index Text cho những người chơi không phải là mục tiêu chính
+            -- ẨN Index Text cho những người chơi không phải là mục tiêu chính
             if esp.IndexText and esp.IndexText.Visible and not isTargetIndex then
                 esp.IndexText.Visible = false
             end
@@ -834,17 +902,17 @@ RunService.RenderStepped:Connect(function()
         if esp.IndexText and esp.IndexText.Visible and not isTargetIndex then
             esp.IndexText.Visible = false
         end
-        
     end
 
-    if PlayerCountLabel and Frame and Frame.Visible then
-        -- Cập nhật nhãn đếm người chơi (Đã dịch)
-        PlayerCountLabel.Text = "Người chơi hiển thị: " .. visiblePlayerCount .. (shouldShow and "" or "")
+    -- Cập nhật AimBot
+    if AIMBOT_ENABLED and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+        local targetHead = targetPlayer.Character.Head
+        -- Cập nhật Camera CFrame để aim
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
     end
 
-    if AIMBOT_ENABLED and Camera then
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.Head.Position)
-        end
+    -- Cập nhật nhãn đếm người chơi
+    if PlayerCountLabel then
+        PlayerCountLabel.Text = "Người chơi hiển thị: " .. tostring(visiblePlayerCount)
     end
 end)
