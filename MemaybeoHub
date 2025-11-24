@@ -1,23 +1,38 @@
---== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON VÀ THÊM NÚT MỞ/ĐÓNG MENU (EDITED) ==--
+--== PC RBLX v2.2 - FPS ĐỘC LẬP CÓ THỂ KÉO THẢ ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting") -- THÊM: Để kiểm soát hiệu ứng làm mờ
-local TweenService = game:GetService("TweenService") -- THÊM: Để tạo hiệu ứng chuyển đổi mượt mà
+local Lighting = game:GetService("Lighting") 
+local TweenService = game:GetService("TweenService") 
 
 local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() 
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- TRẠNG THÁI TÍNH NĂNG
 local AIMBOT_ENABLED = false
 local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false -- Biến này sẽ kiểm soát việc script có chạy hay không (dùng cho CloseBtn)
+local GUI_CLOSED = false 
+
+--== CÀI ĐẶT MÀU SẮC ==--
+local ENEMY_COLOR = Color3.fromRGB(255, 0, 0) -- ĐỎ
+local TEAM_COLOR = Color3.fromRGB(0, 255, 0) -- XANH LÁ
+local FOV_COLOR = ENEMY_COLOR
+
+--== GUI & DRAWING DEFINITIONS ==--
+local ScreenGui, Frame, ToggleBtn
+local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
+local CustomCopyBtn 
+local Notification
+local PlayerCountLabel 
+local FPSMover -- NEW: Nút/Label FPS Độc Lập
 
 --== FOV SETUP (Giữ nguyên) ==--
 local fovCircle
@@ -28,7 +43,7 @@ do
         fovCircle.Visible = false
         fovCircle.Radius = 90
         fovCircle.Thickness = 2
-        fovCircle.Color = Color3.fromRGB(255,255,255)
+        fovCircle.Color = FOV_COLOR
         fovCircle.Filled = false
     else
         fovCircle = nil
@@ -44,19 +59,30 @@ local function createESP(plr)
 
     local successBox, box = pcall(function() return Drawing.new("Square") end)
     local successLine, line = pcall(function() return Drawing.new("Line") end)
+    local successText, text = pcall(function() return Drawing.new("Text") end) 
+    
     ESPs[plr] = {
         Box = successBox and box or nil,
-        Line = successLine and line or nil
+        Line = successLine and line or nil,
+        IndexText = successText and text or nil
     }
 
     if ESPs[plr].Box then
         ESPs[plr].Box.Visible = false
         ESPs[plr].Box.Thickness = 1
         ESPs[plr].Box.Filled = false
+        ESPs[plr].Box.Color = ENEMY_COLOR
     end
     if ESPs[plr].Line then
         ESPs[plr].Line.Visible = false
         ESPs[plr].Line.Thickness = 1
+        ESPs[plr].Line.Color = ENEMY_COLOR
+    end
+    if ESPs[plr].IndexText then 
+        ESPs[plr].IndexText.Visible = false
+        ESPs[plr].IndexText.Size = 12
+        ESPs[plr].IndexText.Outline = true
+        ESPs[plr].IndexText.Color = ENEMY_COLOR
     end
 end
 
@@ -69,11 +95,13 @@ Players.PlayerRemoving:Connect(function(plr)
     if data then
         if data.Box then pcall(function() data.Box:Remove() end) end
         if data.Line then pcall(function() data.Line:Remove() end) end
+        if data.IndexText then pcall(function() data.IndexText:Remove() end) end
         ESPs[plr] = nil
     end
 end)
 
---== CORE FUNCTIONS (Giữ nguyên) ==--
+-- [Các Core Functions (isVisible, getClosestToFOV, ToggleBlur, showNotification) giữ nguyên]
+
 local function isVisible(part)
     if not part then return false end
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
@@ -108,64 +136,72 @@ local function getClosestToFOV()
     return closest
 end
 
---== GUI DEFINITIONS & BLUR SETUP ==--
-local ScreenGui, Frame, TitleBar, InfoLabel1, InfoLabel2
-local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
-local CustomCopyBtn 
-local ToggleBtn -- Nút mở/đóng menu mới
-local Notification
-
--- Setup Blur Effect (Làm mờ nền game)
 local blur = Instance.new("BlurEffect")
-blur.Size = 0 -- Bắt đầu với size 0 (không mờ)
+blur.Size = 0
 blur.Parent = Lighting
 
 local function ToggleBlur(state)
-    -- Sử dụng TweenService để tạo hiệu ứng chuyển đổi Blur mượt mà
     TweenService:Create(
         blur,
-        TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-        {Size = state and 14 or 0} -- Mờ với size 14 khi mở, rõ với size 0 khi đóng
+        TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+        {Size = state and 14 or 0}
     ):Play()
 end
 
 function showNotification(msg)
     if GUI_CLOSED then return end
-    if not Notification or not Notification.Parent then
-        pcall(buildGUI)
-    end
+    if not Notification or not Notification.Parent then pcall(buildGUI) end
     if not Notification then return end
     Notification.Text = msg
     Notification.Visible = true
     task.delay(2, function()
-        if Notification then
-            Notification.Visible = false
-        end
+        if Notification then Notification.Visible = false end
     end)
 end
 
+--== GUI BUILDER FUNCTION (Tách FPS) ==--
 local function buildGUI()
     if ScreenGui and ScreenGui.Parent then 
         if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
+        if not FPSMover.Parent then FPSMover.Parent = ScreenGui end -- Đảm bảo FPS luôn hiển thị
         return 
     end
-
+    
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "MeMayBeo Hub"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.Parent = PlayerGui
 
+    -- 0. FPS MOVER (NEW: Phần tử độc lập, có thể kéo thả)
+    FPSMover = Instance.new("TextLabel", ScreenGui)
+    FPSMover.Size = UDim2.new(0, 80, 0, 20) 
+    FPSMover.Position = UDim2.new(1, -90, 0, 10) -- Góc trên bên phải
+    FPSMover.BackgroundTransparency = 0.8
+    FPSMover.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    FPSMover.Text = "[FPS: N/A]"
+    FPSMover.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FPSMover.Font = Enum.Font.SourceSansBold
+    FPSMover.TextSize = 14
+    FPSMover.Active = true
+    FPSMover.Draggable = true 
+
+    local fpsCorner = Instance.new("UICorner", FPSMover)
+    fpsCorner.CornerRadius = UDim.new(0, 5)
+
     -- 1. NÚT MỞ/ĐÓNG MENU (ToggleBtn)
     ToggleBtn = Instance.new("TextButton", ScreenGui)
     ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
-    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) -- Góc trên bên trái
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) 
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleBtn.Font = Enum.Font.SourceSansBold
     ToggleBtn.TextSize = 20
-    ToggleBtn.Text = "㊎" -- Hoặc bất kỳ biểu tượng nào
+    ToggleBtn.Text = "㊎" 
+    
+    local cornerToggle = Instance.new("UICorner", ToggleBtn)
+    cornerToggle.CornerRadius = UDim.new(0, 5) 
 
-    -- Kéo thả nút Toggle
+    -- Logic Kéo thả cho ToggleBtn (Giữ nguyên)
     local draggingBtn = false
     local dragStartBtn
     local startPosBtn
@@ -177,13 +213,11 @@ local function buildGUI()
             startPosBtn = ToggleBtn.Position
         end
     end)
-
     ToggleBtn.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             draggingBtn = false
         end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if draggingBtn and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStartBtn
@@ -195,25 +229,32 @@ local function buildGUI()
             )
         end
     end)
-    
-    local cornerToggle = Instance.new("UICorner", ToggleBtn)
-    cornerToggle.CornerRadius = UDim.new(0, 5) -- Viền bẻ cong
 
-    -- 2. FRAME CHÍNH (Menu)
+
+    -- 2. FRAME CHÍNH (Menu) - Quay lại kích thước cũ
     Frame = Instance.new("Frame", ScreenGui)
     Frame.Size = UDim2.new(0, 240, 0, 380) 
     Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    Frame.BackgroundTransparency = 0.2 -- LÀM MỜ NỀN FRAME NHẸ
+    Frame.BackgroundTransparency = 0.25 
     Frame.Active = true
     Frame.Draggable = true
-    Frame.Visible = false -- Mặc định ẩn
+    Frame.Visible = false 
 
-    -- THÊM: Bo tròn góc menu chính
-    local menuCorner = Instance.new("UICorner", Frame)
-    menuCorner.CornerRadius = UDim.new(0, 10) -- Bo tròn 10 pixels
+    local corner = Instance.new("UICorner", Frame)
+    corner.CornerRadius = UDim.new(0, 14)
 
-    TitleBar = Instance.new("TextLabel", Frame)
+    local gradient = Instance.new("UIGradient", Frame)
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(25,25,25))
+    }
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.15),
+        NumberSequenceKeypoint.new(1, 0.25)
+    }
+
+    local TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
     TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
     TitleBar.Text = "MeMayBeo Hub"
@@ -221,28 +262,34 @@ local function buildGUI()
     TitleBar.Font = Enum.Font.SourceSansBold
     TitleBar.TextSize = 20
     
-    -- THÊM: Bo tròn góc cho TitleBar (chỉ 2 góc trên)
-    local titleCorner = Instance.new("UICorner", TitleBar)
-    titleCorner.CornerRadius = UDim.new(0, 10) 
-    -- TitleBar nằm trên Frame đã được bo, nên nó sẽ bo tròn tự động
-
-    InfoLabel1 = Instance.new("TextLabel", Frame)
+    -- Các Label thông tin dịch lên do không còn FPS Label ở vị trí 40
+    local InfoLabel1 = Instance.new("TextLabel", Frame)
     InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel1.Position = UDim2.new(0, 10, 0, 40)
+    InfoLabel1.Position = UDim2.new(0, 10, 0, 40) -- 55 -> 40
     InfoLabel1.BackgroundTransparency = 1
     InfoLabel1.Text = "Tik Tok @hoangvanson_9k"
     InfoLabel1.TextColor3 = Color3.fromRGB(200,200,200)
     InfoLabel1.Font = Enum.Font.SourceSansItalic
     InfoLabel1.TextSize = 14
 
-    InfoLabel2 = Instance.new("TextLabel", Frame)
+    local InfoLabel2 = Instance.new("TextLabel", Frame)
     InfoLabel2.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel2.Position = UDim2.new(0, 10, 0, 55)
+    InfoLabel2.Position = UDim2.new(0, 10, 0, 55) -- 70 -> 55
     InfoLabel2.BackgroundTransparency = 1
     InfoLabel2.Text = "MeMayBeo Hub by @hoangvanson_9k"
     InfoLabel2.TextColor3 = Color3.fromRGB(200,200,200)
     InfoLabel2.Font = Enum.Font.SourceSansItalic
     InfoLabel2.TextSize = 14
+    
+    PlayerCountLabel = Instance.new("TextLabel", Frame)
+    PlayerCountLabel.Size = UDim2.new(1, -20, 0, 20)
+    PlayerCountLabel.Position = UDim2.new(0, 10, 0, 75) -- 90 -> 75
+    PlayerCountLabel.BackgroundTransparency = 1
+    PlayerCountLabel.Text = "Players Scanned: 0"
+    PlayerCountLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    PlayerCountLabel.Font = Enum.Font.SourceSansBold
+    PlayerCountLabel.TextSize = 16
+
 
     local function createButton(text, posY, color)
         local btn = Instance.new("TextButton", Frame)
@@ -253,21 +300,21 @@ local function buildGUI()
         btn.TextColor3 = Color3.fromRGB(255,255,255)
         btn.Font = Enum.Font.SourceSansBold
         btn.TextSize = 16
-        -- Bo tròn góc cho Button
         local btnCorner = Instance.new("UICorner", btn)
         btnCorner.CornerRadius = UDim.new(0, 8) 
         return btn
     end
 
-    BtnToggleAimbot = createButton("Aimbot: OFF", 80)
-    BtnToggleESP = createButton("ESP: OFF", 120)
-    BtnToggleESPLines = createButton("ESP Lines: OFF", 160)
-    BtnToggleFOV = createButton("Show FOV: OFF", 200)
-    BtnToggleTeamCheck = createButton("Team Check: OFF", 240)
-    CloseBtn = createButton("CLOSE", 290, Color3.fromRGB(150,50,50)) 
+    -- Vị trí các nút đã được dịch lên
+    BtnToggleAimbot = createButton("Aimbot: OFF", 100) -- 120 -> 100
+    BtnToggleESP = createButton("ESP: OFF", 140)
+    BtnToggleESPLines = createButton("ESP Lines: OFF", 180)
+    BtnToggleFOV = createButton("Show FOV: OFF", 220)
+    BtnToggleTeamCheck = createButton("Team Check: OFF", 260)
     
-    -- NÚT CUSTOM COPY
-    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 330, Color3.fromRGB(50, 150, 255))
+    CloseBtn = createButton("CLOSE", 300, Color3.fromRGB(150,50,50)) 
+    
+    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 340, Color3.fromRGB(50, 150, 255))
     CustomCopyBtn.TextSize = 18 
 
     -- 3. NOTIFICATION
@@ -279,39 +326,21 @@ local function buildGUI()
     Notification.TextColor3 = Color3.fromRGB(255,255,255)
     Notification.TextScaled = true
     Notification.Visible = false
-    -- Bo tròn góc cho Notification
-    local notiCorner = Instance.new("UICorner", Notification)
-    notiCorner.CornerRadius = UDim.new(0, 5)
 
-    --== EVENT HANDLERS ==--
-
-    -- Nút Toggle Menu (Mở/Đóng Frame chính)
+    -- [Event Handlers giữ nguyên]
     ToggleBtn.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         Frame.Visible = not Frame.Visible
-        ToggleBlur(Frame.Visible) -- KÍCH HOẠT BLUR
+        ToggleBlur(Frame.Visible)
     end)
 
-    -- Nút Custom Copy (Giữ nguyên chức năng)
     CustomCopyBtn.MouseButton1Click:Connect(function()
         local textToCopy = "@hoangvanson_9k"
         local copySuccessful = false
-
-        pcall(function()
-            setclipboard(textToCopy) 
-            copySuccessful = true
-        end)
-
-        if copySuccessful then
-              print("PC RBLX: Đã copy thành công: " .. textToCopy)
-              showNotification("ĐÃ COPY: " .. textToCopy)
-        else
-              print("PC RBLX: KHÔNG THỂ COPY. Executor chặn setclipboard().")
-              showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
-        end
+        pcall(function() setclipboard(textToCopy) copySuccessful = true end)
+        if copySuccessful then showNotification("ĐÃ COPY: " .. textToCopy) else showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)") end
     end)
     
-    -- Các nút Toggle cũ (Giữ nguyên chức năng)
     BtnToggleAimbot.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         AIMBOT_ENABLED = not AIMBOT_ENABLED
@@ -344,34 +373,33 @@ local function buildGUI()
     end)
 
     CloseBtn.MouseButton1Click:Connect(function()
-        -- Tắt tất cả các tính năng & đóng GUI
         AIMBOT_ENABLED = false
         ESP_ENABLED = false
         ESPLINE_ENABLED = false
         FOV_ENABLED = false
         TEAMCHECK_ENABLED = false
         GUI_CLOSED = true
-        ToggleBlur(false) -- TẮT BLUR KHI ĐÓNG VĨNH VIỄN
+        ToggleBlur(false) 
 
         if Frame then Frame.Visible = false end
-        if ScreenGui then ScreenGui.Enabled = false end -- Disable toàn bộ ScreenGui
+        if ScreenGui then ScreenGui.Enabled = false end 
 
         if fovCircle then fovCircle.Visible = false end
         for _, esp in pairs(ESPs) do
-            if esp.Box then esp.Box.Visible = false end
-            if esp.Line then esp.Line.Visible = false end
+            if esp.Box then pcall(function() esp.Box:Remove() end) end
+            if esp.Line then pcall(function() esp.Line:Remove() end) end
+            if esp.IndexText then pcall(function() esp.IndexText:Remove() end) end
         end
     end)
 end
 
 buildGUI()
 
---== INPUT & CHARACTER EVENTS ==--
+--== INPUT & CHARACTER EVENTS (Giữ nguyên) ==--
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if GUI_CLOSED then return end
     
-    -- Phím E (Toggle Aimbot)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
         if BtnToggleAimbot and BtnToggleAimbot.Parent then
@@ -379,11 +407,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
         showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
     
-    -- Phím K (Toggle Menu)
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if Frame then
             Frame.Visible = not Frame.Visible
-            ToggleBlur(Frame.Visible) -- KÍCH HOẠT BLUR
+            ToggleBlur(Frame.Visible)
         else
             pcall(buildGUI)
         end
@@ -404,6 +431,19 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
+--== FPS COUNTER SETUP (Cập nhật FPSMover) ==--
+local lastTick = tick()
+RunService.Heartbeat:Connect(function()
+    local now = tick()
+    local delta = now - lastTick
+    lastTick = now
+    local fps = math.round(1 / delta)
+
+    if FPSMover and FPSMover.Parent then
+        FPSMover.Text = "[FPS: " .. fps .. "]"
+    end
+end)
+
 --== RENDER LOOP (Giữ nguyên) ==--
 
 RunService.RenderStepped:Connect(function()
@@ -411,6 +451,9 @@ RunService.RenderStepped:Connect(function()
         if fovCircle then fovCircle.Visible = false end
         return
     end
+
+    local visiblePlayerCount = 0
+    local playerIndex = 0 
 
     if fovCircle then
         if FOV_ENABLED and Camera then
@@ -422,46 +465,80 @@ RunService.RenderStepped:Connect(function()
     end
 
     for plr, esp in pairs(ESPs) do
-        if esp and plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and Camera then
-            local hrp = plr.Character.HumanoidRootPart
+        local character = plr.Character
+        local shouldShow = ESP_ENABLED or ESPLINE_ENABLED
+        
+        if esp and character and character:FindFirstChild("HumanoidRootPart") and Camera and shouldShow then
+            local hrp = character.HumanoidRootPart
             local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
-            -- ESP BOX
-            if ESP_ENABLED and onScreen then
+            local current_color
+            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+                current_color = TEAM_COLOR
+            else
+                current_color = ENEMY_COLOR
+            end
+
+            if onScreen then
+                visiblePlayerCount = visiblePlayerCount + 1
+                playerIndex = playerIndex + 1
+
+                -- ESP BOX
                 local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
                 local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
                 local height = math.abs(topVec.Y - bottomVec.Y)
                 
-                if esp.Box then
-                    esp.Box.Size = Vector2.new(height*0.6, height)
-                    esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                    esp.Box.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                    esp.Box.Visible = true
+                if ESP_ENABLED then
+                    if esp.Box then
+                        esp.Box.Size = Vector2.new(height*0.6, height)
+                        esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
+                        esp.Box.Color = current_color
+                        esp.Box.Visible = true
+                    end
+                else
+                    if esp.Box then esp.Box.Visible = false end
                 end
+
+                -- ESP LINES
+                if ESPLINE_ENABLED then
+                    if esp.Line then
+                        esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
+                        esp.Line.To = Vector2.new(vec.X, vec.Y)
+                        esp.Line.Color = current_color
+                        esp.Line.Visible = true
+                    end
+                else
+                    if esp.Line then esp.Line.Visible = false end
+                end
+
+                -- INDEX TEXT
+                if ESPLINE_ENABLED and esp.IndexText then
+                    esp.IndexText.Position = Vector2.new(vec.X + 5, vec.Y - 5) 
+                    esp.IndexText.Text = tostring(playerIndex)
+                    esp.IndexText.Color = current_color
+                    esp.IndexText.Visible = true
+                else
+                    if esp.IndexText then esp.IndexText.Visible = false end
+                end
+
             else
                 if esp.Box then esp.Box.Visible = false end
-            end
-
-            -- ESP LINES
-            if ESPLINE_ENABLED and onScreen then
-                if esp.Line then
-                    esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
-                    esp.Line.To = Vector2.new(vec.X, vec.Y)
-                    esp.Line.Color = (TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)
-                        and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                    esp.Line.Visible = true
-                end
-            else
                 if esp.Line then esp.Line.Visible = false end
+                if esp.IndexText then esp.IndexText.Visible = false end
             end
         else
             if esp.Box then esp.Box.Visible = false end
             if esp.Line then esp.Line.Visible = false end
+            if esp.IndexText then esp.IndexText.Visible = false end
         end
     end
+    
+    if PlayerCountLabel and Frame and Frame.Visible then
+        PlayerCountLabel.Text = "Players Scanned: " .. visiblePlayerCount .. (shouldShow and "" or " (ESP OFF)")
+    elseif PlayerCountLabel then
+        PlayerCountLabel.Text = "Players Scanned: 0"
+    end
 
-    -- AIMBOT
     if AIMBOT_ENABLED and Camera then
         local target = getClosestToFOV()
         if target then
