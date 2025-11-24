@@ -1,14 +1,12 @@
---== PC RBLX v2.6 - Fix Menu Ẩn Mặc Định & Sửa Tên Nút ==--
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting") 
-local TweenService = game:GetService("TweenService") 
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() 
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -19,21 +17,38 @@ local ESP_ENABLED = false
 local ESPLINE_ENABLED = false
 local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
-local GUI_CLOSED = false 
+local RAINBOW_FOV_ENABLED = false 
+local GUI_CLOSED = false
 
 --== CÀI ĐẶT MÀU SẮC ==--
-local ENEMY_COLOR = Color3.fromRGB(255, 255, 255)     -- TRẮNG (Cho ESP Box và Line)
-local TEAM_COLOR = Color3.fromRGB(0, 255, 0)         -- XANH LÁ
-local FOV_COLOR = Color3.fromRGB(0, 255, 0)          -- XANH LÁ CÂY 
-local INDEX_COLOR_ENEMY = Color3.fromRGB(255, 0, 0)  -- ĐỎ (Cho Index Text của Enemy)
+local ENEMY_COLOR = Color3.fromRGB(255, 255, 255)        -- TRẮNG (Cho ESP Box và Line)
+local TEAM_COLOR = Color3.fromRGB(0, 255, 0)             -- XANH LÁ
+local FOV_COLOR = Color3.fromRGB(0, 255, 0)              -- XANH LÁ CÂY (Mặc định)
+local INDEX_COLOR_ENEMY = Color3.fromRGB(255, 0, 0)      -- ĐỎ (Cho Index Text của Enemy)
+local SLIDER_COLOR = Color3.fromRGB(0, 255, 0)           -- MÀU XANH LÁ CÂY CHO SLIDER
+
+--== CÀI ĐẶT FOV MỚI ==--
+local FOV_MIN = 30
+local FOV_MAX = 500
+local FOV_RADIUS_VALUE = 90 -- Giá trị FOV mặc định và có thể thay đổi
 
 --== GUI & DRAWING DEFINITIONS ==--
 local ScreenGui, Frame, ToggleBtn
-local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
-local CustomCopyBtn 
+local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, BtnToggleRainbowFOV, CloseBtn -- [UPDATED]
+local CustomCopyBtn
 local Notification
-local PlayerCountLabel 
-local FPSMover 
+local PlayerCountLabel
+local FPSMover
+
+-- [NEW SLIDER ELEMENTS]
+local FovSliderLabel
+local SliderContainer
+local SliderTrack
+local SliderFill
+local SliderThumb
+
+--== GLOBAL DRAG STATE ==--
+local isDraggingSlider = false -- Biến toàn cục theo dõi trạng thái kéo (HOLD state)
 
 --== FOV SETUP ==--
 local fovCircle
@@ -42,7 +57,7 @@ do
     if success and circle then
         fovCircle = circle
         fovCircle.Visible = false
-        fovCircle.Radius = 90
+        fovCircle.Radius = FOV_RADIUS_VALUE -- Sử dụng biến mới
         fovCircle.Thickness = 2
         fovCircle.Color = FOV_COLOR
         fovCircle.Filled = false
@@ -60,8 +75,8 @@ local function createESP(plr)
 
     local successBox, box = pcall(function() return Drawing.new("Square") end)
     local successLine, line = pcall(function() return Drawing.new("Line") end)
-    local successText, text = pcall(function() return Drawing.new("Text") end) 
-    
+    local successText, text = pcall(function() return Drawing.new("Text") end)
+
     ESPs[plr] = {
         Box = successBox and box or nil,
         Line = successLine and line or nil,
@@ -79,11 +94,12 @@ local function createESP(plr)
         ESPs[plr].Line.Thickness = 1
         ESPs[plr].Line.Color = ENEMY_COLOR -- TRẮNG
     end
-    if ESPs[plr].IndexText then 
+    if ESPs[plr].IndexText then
         ESPs[plr].IndexText.Visible = false
-        ESPs[plr].IndexText.Size = 36 -- KÍCH THƯỚC LỚN HƠN
+        ESPs[plr].IndexText.Size = 48 -- Tăng kích thước Index Text để nổi bật hơn
         ESPs[plr].IndexText.Outline = true
-        ESPs[plr].IndexText.Color = ENEMY_COLOR 
+        ESPs[plr].IndexText.Color = INDEX_COLOR_ENEMY -- ĐỎ
+        ESPs[plr].IndexText.Text = "🎯" -- Biểu tượng mục tiêu
     end
 end
 
@@ -108,16 +124,20 @@ local function isVisible(part)
     local origin = Camera and Camera.CFrame.Position or Workspace.CurrentCamera.CFrame.Position
     local dir = (part.Position - origin)
     if dir.Magnitude == 0 then return true end
+    -- Cố gắng sử dụng Raycasting mới nếu có (chỉ giữ lại bản cũ cho tính tương thích)
     local ray = Ray.new(origin, dir.Unit * math.clamp(dir.Magnitude, 1, 1000))
     local hit, hitPos = Workspace:FindPartOnRay(ray, LocalPlayer.Character, false, true)
     return hit and hit:IsDescendantOf(part.Parent)
 end
 
 local function getClosestToFOV()
-    if not AIMBOT_ENABLED then return nil end
+    -- Hàm này sẽ tìm người chơi gần tâm FOV nhất
     local closest, dist = nil, math.huge
+    local currentFovRadius = FOV_RADIUS_VALUE -- Sử dụng giá trị FOV hiện tại
+
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+            -- Bỏ qua đồng đội nếu TeamCheck ON
             if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
                 continue
             end
@@ -125,9 +145,10 @@ local function getClosestToFOV()
             local vec, onScreen = Camera:WorldToViewportPoint(head.Position)
             if onScreen then
                 local mag = (Vector2.new(vec.X, vec.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if mag < (fovCircle and fovCircle.Radius or 90) and mag < dist then
+                -- Kiểm tra dựa trên giá trị FOV hiện tại
+                if mag < currentFovRadius and mag < dist then
                     if isVisible(head) then
-                        closest = head
+                        closest = plr -- Trả về Player, không phải Head
                         dist = mag
                     end
                 end
@@ -160,21 +181,129 @@ function showNotification(msg)
     end)
 end
 
---== GUI BUILDER FUNCTION ==--
-local function buildGUI()
-    if ScreenGui and ScreenGui.Parent then 
-        if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
-        if not FPSMover.Parent then FPSMover.Parent = ScreenGui end 
-        return 
+-- Hàm chuyển đổi từ HSV sang Color3
+local function colorFromHSV(h, s, v)
+    local i = math.floor(h * 6)
+    local f = h * 6 - i
+    local p = v * (1 - s)
+    local q = v * (1 - f * s)
+    local t = v * (1 - (1 - f) * s)
+    local r, g, b
+    
+    if i % 6 == 0 then r, g, b = v, t, p
+    elseif i % 6 == 1 then r, g, b = q, v, p
+    elseif i % 6 == 2 then r, g, b = p, v, t
+    elseif i % 6 == 3 then r, g, b = p, q, v
+    elseif i % 6 == 4 then r, g, b = t, p, v
+    elseif i % 6 == 5 then r, g, b = v, p, q
     end
     
+    return Color3.new(r, g, b)
+end
+
+
+--== LOGIC THANH KÉO FOV (GIỮ VÀ KÉO) ==--
+
+-- Hàm ánh xạ giá trị FOV (MIN-MAX) thành tỉ lệ (0-1)
+local function getFovRatio()
+    return math.min(1, math.max(0, (FOV_RADIUS_VALUE - FOV_MIN) / (FOV_MAX - FOV_MIN)))
+end
+
+-- Hàm cập nhật vị trí thanh kéo và giá trị FOV
+local function updateFovSlider(newRatio)
+    local ratio = math.min(1, math.max(0, newRatio))
+    
+    -- Tính giá trị FOV mới
+    local newFov = math.round(FOV_MIN + (FOV_MAX - FOV_MIN) * ratio)
+    
+    -- Cập nhật biến toàn cục
+    FOV_RADIUS_VALUE = newFov
+    if fovCircle then
+        fovCircle.Radius = newFov
+    end
+
+    -- Cập nhật GUI (Đã dịch sang Tiếng Việt)
+    if FovSliderLabel then
+        FovSliderLabel.Text = "Bán kính FOV: " .. tostring(newFov) -- Dịch
+    end
+    
+    if SliderTrack and SliderFill and SliderThumb then
+        -- Cần lấy kích thước Track sau khi GUI đã được render
+        local trackWidth = SliderTrack.AbsoluteSize.X
+        
+        -- Cập nhật thanh điền (Fill)
+        SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
+        
+        -- Cập nhật vị trí núm kéo (Thumb)
+        -- Vị trí Thumb = Tỉ lệ * Chiều rộng Track - Nửa chiều rộng của Thumb
+        local thumbWidth = SliderThumb.AbsoluteSize.X
+        local thumbX = (ratio * trackWidth) - (thumbWidth / 2)
+        SliderThumb.Position = UDim2.new(0, thumbX, 0.5, 0)
+    end
+end
+
+-- Xử lý kéo (Chạy liên tục khi chuột di chuyển và đang ở trạng thái kéo)
+local function handleSliderDrag(input)
+    if GUI_CLOSED or not SliderTrack or not isDraggingSlider then return end
+    
+    -- Lấy vị trí chuột trong không gian tuyệt đối của thanh kéo
+    local trackAbsPos = SliderTrack.AbsolutePosition
+    local trackAbsSize = SliderTrack.AbsoluteSize
+    
+    -- Sử dụng input.Position.X để lấy tọa độ X của chuột
+    local mouseX = input.Position.X 
+    
+    -- Tính toán vị trí X của chuột so với điểm gốc của Track
+    local xOffset = mouseX - trackAbsPos.X
+    
+    -- Tính toán tỉ lệ mới (0 đến 1)
+    local newRatio = xOffset / trackAbsSize.X
+    
+    -- Cập nhật thanh kéo và giá trị FOV
+    updateFovSlider(newRatio)
+end
+
+-- BƯỚC 2: Kéo liên tục (DRAG)
+-- Trình lắng nghe toàn cục cho MouseMovement, chỉ hoạt động nếu isDraggingSlider = true
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+        -- Vẫn kiểm tra xem Frame có hiển thị không để tránh kéo trong khi menu đóng
+        if Frame and Frame.Visible then
+            handleSliderDrag(input)
+        end
+    end
+end)
+
+-- BƯỚC 3: Dừng kéo (RELEASE)
+-- Trình lắng nghe toàn cục cho InputEnded, đặt lại trạng thái kéo
+UserInputService.InputEnded:Connect(function(input)
+    -- Dừng kéo ngay khi nhả chuột (MouseButton1) ở bất cứ đâu trên màn hình
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingSlider = false
+    end
+end)
+
+
+--== GUI BUILDER FUNCTION ==--
+local function updateButtonText(btn, featureName, isEnabled, icon)
+    local status = isEnabled and "BẬT" or "TẮT"
+    btn.Text = featureName .. ": " .. status .. " " .. icon
+end
+
+local function buildGUI()
+    if ScreenGui and ScreenGui.Parent then
+        if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
+        if not FPSMover.Parent then FPSMover.Parent = ScreenGui end
+        return
+    end
+
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "MeMayBeo Hub"
     ScreenGui.ResetOnSpawn = false
 
     -- 0. FPS MOVER (NEW: Phần tử độc lập, có thể kéo thả)
     FPSMover = Instance.new("TextLabel", ScreenGui)
-    FPSMover.Size = UDim2.new(0, 80, 0, 20) 
+    FPSMover.Size = UDim2.new(0, 80, 0, 20)
     FPSMover.Position = UDim2.new(1, -90, 0, 10) -- Góc trên bên phải
     FPSMover.BackgroundTransparency = 0.8
     FPSMover.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -183,7 +312,8 @@ local function buildGUI()
     FPSMover.Font = Enum.Font.SourceSansBold
     FPSMover.TextSize = 14
     FPSMover.Active = true
-    FPSMover.Draggable = true 
+    FPSMover.Draggable = true
+    FPSMover.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
     local fpsCorner = Instance.new("UICorner", FPSMover)
     fpsCorner.CornerRadius = UDim.new(0, 5)
@@ -191,15 +321,16 @@ local function buildGUI()
     -- 1. NÚT MỞ/ĐÓNG MENU (ToggleBtn)
     ToggleBtn = Instance.new("TextButton", ScreenGui)
     ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
-    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) 
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 10)
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleBtn.Font = Enum.Font.SourceSansBold
     ToggleBtn.TextSize = 20
-    ToggleBtn.Text = "㊎" 
-    
+    ToggleBtn.Text = "㊎"
+    ToggleBtn.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+
     local cornerToggle = Instance.new("UICorner", ToggleBtn)
-    cornerToggle.CornerRadius = UDim.new(0, 5) 
+    cornerToggle.CornerRadius = UDim.new(0, 5)
 
     -- Logic Kéo thả cho ToggleBtn
     local draggingBtn = false
@@ -213,7 +344,7 @@ local function buildGUI()
             startPosBtn = ToggleBtn.Position
         end
     end)
-    ToggleBtn.InputEnded:Connect(function(input)
+    UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             draggingBtn = false
         end
@@ -231,15 +362,19 @@ local function buildGUI()
     end)
 
 
-    -- 2. FRAME CHÍNH (Menu) 
+    -- 2. FRAME CHÍNH (Menu)
+    -- Kích thước 450x360
+    local FRAME_WIDTH = 450
+    local FRAME_HEIGHT = 360
     Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(0, 240, 0, 380) 
-    Frame.Position = UDim2.new(0.5, -120, 0.5, -190) -- Căn giữa màn hình
+    Frame.Size = UDim2.new(0, FRAME_WIDTH, 0, FRAME_HEIGHT) 
+    Frame.Position = UDim2.new(0.5, -FRAME_WIDTH/2, 0.5, -FRAME_HEIGHT/2) -- Căn giữa màn hình mới
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    Frame.BackgroundTransparency = 0.25 
+    Frame.BackgroundTransparency = 0.25
     Frame.Active = true
     Frame.Draggable = true
-    Frame.Visible = false 
+    Frame.Visible = false
+    Frame.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
     local corner = Instance.new("UICorner", Frame)
     corner.CornerRadius = UDim.new(0, 14)
@@ -257,65 +392,167 @@ local function buildGUI()
     local TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
     TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    TitleBar.Text = "MeMayBeo Hub (K HOẶC ㊎ ĐỂ ĐÓNG)"
+    TitleBar.Text = "MeMayBeo Hub" -- Dịch Title
     TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
     TitleBar.Font = Enum.Font.SourceSansBold
-    TitleBar.TextSize = 16 
-    
+    TitleBar.TextSize = 29
+    TitleBar.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+
     local InfoLabel1 = Instance.new("TextLabel", Frame)
     InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel1.Position = UDim2.new(0, 10, 0, 40) 
+    InfoLabel1.Position = UDim2.new(0, 10, 0, 40)
     InfoLabel1.BackgroundTransparency = 1
     InfoLabel1.Text = "Tik Tok @hoangvanson_9k"
     InfoLabel1.TextColor3 = Color3.fromRGB(200,200,200)
     InfoLabel1.Font = Enum.Font.SourceSansItalic
-    InfoLabel1.TextSize = 14
+    InfoLabel1.TextSize = 20
+    InfoLabel1.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
     local InfoLabel2 = Instance.new("TextLabel", Frame)
     InfoLabel2.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel2.Position = UDim2.new(0, 10, 0, 55) 
+    InfoLabel2.Position = UDim2.new(0, 10, 0, 55)
     InfoLabel2.BackgroundTransparency = 1
     InfoLabel2.Text = "MeMayBeo Hub by @hoangvanson_9k"
     InfoLabel2.TextColor3 = Color3.fromRGB(200,200,200)
     InfoLabel2.Font = Enum.Font.SourceSansItalic
-    InfoLabel2.TextSize = 14
-    
+    InfoLabel2.TextSize = 20
+    InfoLabel2.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+
     PlayerCountLabel = Instance.new("TextLabel", Frame)
     PlayerCountLabel.Size = UDim2.new(1, -20, 0, 20)
-    PlayerCountLabel.Position = UDim2.new(0, 10, 0, 75) 
+    PlayerCountLabel.Position = UDim2.new(0, 10, 0, 75)
     PlayerCountLabel.BackgroundTransparency = 1
-    PlayerCountLabel.Text = "Players Scanned: 0"
+    PlayerCountLabel.Text = "Người chơi hiển thị: 0" -- Dịch
     PlayerCountLabel.TextColor3 = Color3.fromRGB(255,255,255)
     PlayerCountLabel.Font = Enum.Font.SourceSansBold
     PlayerCountLabel.TextSize = 16
+    PlayerCountLabel.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
 
-    local function createButton(text, posY, color)
+    local function createButton(text, posY, posX, width, color)
         local btn = Instance.new("TextButton", Frame)
-        btn.Size = UDim2.new(0,200,0,30)
-        btn.Position = UDim2.new(0,20,0,posY)
+        btn.Size = UDim2.new(0, width or 200, 0, 30)
+        btn.Position = UDim2.new(0, posX or 20, 0, posY)
         btn.Text = text
         btn.BackgroundColor3 = color or Color3.fromRGB(60,60,60)
         btn.TextColor3 = Color3.fromRGB(255,255,255)
         btn.Font = Enum.Font.SourceSansBold
         btn.TextSize = 16
+        btn.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền cho nút
         local btnCorner = Instance.new("UICorner", btn)
-        btnCorner.CornerRadius = UDim.new(0, 8) 
+        btnCorner.CornerRadius = UDim.new(0, 8)
         return btn
     end
+    
+    -- Vị trí bắt đầu của các nút chức năng
+    local START_Y = 100
+    local COLUMN_1_X = 20
+    local COLUMN_2_X = 230
+    local BUTTON_WIDTH = 200
+    local BUTTON_SPACING = 40 -- Chiều cao nút + khoảng cách = 30 + 10
 
-    -- Sửa lại tên nút theo yêu cầu (ngắn gọn hơn)
-    BtnToggleAimbot = createButton("Aimbot: OFF", 100) 
-    BtnToggleESP = createButton("ESP: OFF", 140)
-    BtnToggleESPLines = createButton("ESP Lines: OFF", 180)
-    BtnToggleFOV = createButton("Show FOV: OFF", 220)
-    BtnToggleTeamCheck = createButton("Team Check: OFF", 260)
+    -- COLUMN 1 (Đã dịch và thêm icon)
+    BtnToggleAimbot = createButton("", START_Y, COLUMN_1_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleAimbot, "Aim", AIMBOT_ENABLED, "🔫")
+
+    BtnToggleESP = createButton("", START_Y + BUTTON_SPACING, COLUMN_1_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleESP, "Định Vị Hộp", ESP_ENABLED, "🔲")
+
+    BtnToggleFOV = createButton("", START_Y + BUTTON_SPACING*2, COLUMN_1_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleFOV, "Hiển thị FOV", FOV_ENABLED, "⭕")
     
-    -- Sửa lại tên nút CLOSE theo yêu cầu (CLOSE)
-    CloseBtn = createButton("CLOSE", 300, Color3.fromRGB(150,50,50)) 
+    -- COLUMN 2 (Đã dịch và thêm icon)
+    BtnToggleESPLines = createButton("", START_Y, COLUMN_2_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleESPLines, "Định Vị Đường", ESPLINE_ENABLED, "เส้น") -- Dùng icon đặc biệt cho đường line
+
+    BtnToggleTeamCheck = createButton("", START_Y + BUTTON_SPACING, COLUMN_2_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleTeamCheck, "Bỏ qua đồng đội", TEAMCHECK_ENABLED, "🤝")
+
+    BtnToggleRainbowFOV = createButton("", START_Y + BUTTON_SPACING*2, COLUMN_2_X, BUTTON_WIDTH)
+    updateButtonText(BtnToggleRainbowFOV, "Fov Cầu Vòng", RAINBOW_FOV_ENABLED, "🌈") 
     
-    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 340, Color3.fromRGB(50, 150, 255))
-    CustomCopyBtn.TextSize = 18 
+    -- Vị trí tiếp theo sau 2 cột
+    local NEXT_Y = START_Y + BUTTON_SPACING*3 + 5 -- Bắt đầu từ 220, tăng thêm 5px để tạo khoảng cách
+
+    --== THANH KÉO FOV (TOÀN BỘ CHIỀU RỘNG) ==--
+    
+    -- 1. Label hiển thị giá trị FOV (Đã dịch)
+    FovSliderLabel = Instance.new("TextLabel", Frame)
+    FovSliderLabel.Size = UDim2.new(1, -20, 0, 20)
+    FovSliderLabel.Position = UDim2.new(0, 10, 0, NEXT_Y) 
+    FovSliderLabel.BackgroundTransparency = 1
+    FovSliderLabel.Text = "FOV: " .. tostring(FOV_RADIUS_VALUE)
+    FovSliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FovSliderLabel.Font = Enum.Font.SourceSansBold
+    FovSliderLabel.TextSize = 16
+    FovSliderLabel.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    
+    -- 2. Container cho Slider
+    local SLIDER_Y = NEXT_Y + 25
+    local SLIDER_WIDTH = FRAME_WIDTH - 40
+    SliderContainer = Instance.new("Frame", Frame)
+    SliderContainer.Size = UDim2.new(0, SLIDER_WIDTH, 0, 20)
+    SliderContainer.Position = UDim2.new(0, 20, 0, SLIDER_Y) 
+    SliderContainer.BackgroundTransparency = 1
+    SliderContainer.Active = true 
+    SliderContainer.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    
+    -- 3. Track (Nền đen)
+    SliderTrack = Instance.new("Frame", SliderContainer)
+    SliderTrack.Size = UDim2.new(1, 0, 0, 8)
+    SliderTrack.Position = UDim2.new(0, 0, 0.5, -4)
+    SliderTrack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    SliderTrack.Active = true 
+    SliderTrack.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    
+    local trackCorner = Instance.new("UICorner", SliderTrack)
+    trackCorner.CornerRadius = UDim.new(0, 4)
+    
+    -- 4. Fill (Phần đã điền, màu xanh lá cây)
+    SliderFill = Instance.new("Frame", SliderTrack)
+    SliderFill.Size = UDim2.new(getFovRatio(), 0, 1, 0) -- Khởi tạo Fill theo giá trị FOV hiện tại
+    SliderFill.Position = UDim2.new(0, 0, 0, 0)
+    SliderFill.BackgroundColor3 = SLIDER_COLOR
+    SliderFill.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    
+    local fillCorner = Instance.new("UICorner", SliderFill)
+    fillCorner.CornerRadius = UDim.new(0, 4)
+
+    -- 5. Thumb (Nút kéo, hình tròn màu trắng)
+    SliderThumb = Instance.new("ImageLabel", SliderContainer)
+    SliderThumb.Size = UDim2.new(0, 16, 0, 16)
+    SliderThumb.Image = "rbxassetid://6250275811" -- Icon hình tròn trắng
+    SliderThumb.BackgroundTransparency = 1
+    SliderThumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderThumb.Active = true 
+    SliderThumb.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
+    
+    local thumbCorner = Instance.new("UICorner", SliderThumb)
+    thumbCorner.CornerRadius = UDim.new(0.5, 0) -- Làm cho nó tròn
+    
+    -- Khởi tạo vị trí ban đầu của Thumb
+    updateFovSlider(getFovRatio())
+
+    -- BƯỚC 1: BẮT ĐẦU KÉO (HOLD)
+    local function startDragging(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDraggingSlider = true -- Kích hoạt trạng thái kéo
+            handleSliderDrag(input) -- Cập nhật ngay khi click để bắt đầu kéo
+        end
+    end
+
+    -- Bắt đầu kéo khi nhấp vào Thumb
+    SliderThumb.InputBegan:Connect(startDragging)
+    -- Bắt đầu kéo khi nhấp vào Track (kể cả Fill)
+    SliderTrack.InputBegan:Connect(startDragging)
+    
+    -- Cập nhật vị trí các nút cuối (Toàn bộ chiều rộng Frame)
+    local FOOTER_Y = SLIDER_Y + 35
+    
+    CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", FOOTER_Y, COLUMN_1_X, SLIDER_WIDTH, Color3.fromRGB(50, 150, 255)) 
+    CustomCopyBtn.TextSize = 18
+    
+    CloseBtn = createButton("ĐÓNG MENU", FOOTER_Y + BUTTON_SPACING, COLUMN_1_X, SLIDER_WIDTH, Color3.fromRGB(150,50,50)) -- Dịch
 
     -- 3. NOTIFICATION
     Notification = Instance.new("TextLabel", ScreenGui)
@@ -326,6 +563,7 @@ local function buildGUI()
     Notification.TextColor3 = Color3.fromRGB(255,255,255)
     Notification.TextScaled = true
     Notification.Visible = false
+    Notification.BorderSizePixel = 0 -- ĐÃ THÊM: Loại bỏ viền mặc định
 
     -- [Event Handlers]
     ToggleBtn.MouseButton1Click:Connect(function()
@@ -338,41 +576,46 @@ local function buildGUI()
         local textToCopy = "@hoangvanson_9k"
         local copySuccessful = false
         pcall(function() setclipboard(textToCopy) copySuccessful = true end)
-        if copySuccessful then showNotification("ĐÃ COPY: " .. textToCopy) else showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)") end
+        if copySuccessful then showNotification("ĐÃ COPY: " .. textToCopy .. " ✅") else showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)") end -- Thêm icon
     end)
-    
+
     BtnToggleAimbot.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         AIMBOT_ENABLED = not AIMBOT_ENABLED
-        -- Cập nhật text ngắn gọn
-        BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled (Phím E)" or "Aimbot Disabled")
+        updateButtonText(BtnToggleAimbot, "Aim", AIMBOT_ENABLED, "🔫")
+        showNotification(AIMBOT_ENABLED and "Aim BẬT (Phím E)" or "Aim TẮT") -- Dịch Notification
     end)
 
     BtnToggleESP.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         ESP_ENABLED = not ESP_ENABLED
-        -- Cập nhật text ngắn gọn
-        BtnToggleESP.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
+        updateButtonText(BtnToggleESP, "Định Vị Hộp", ESP_ENABLED, "🔲")
     end)
 
     BtnToggleESPLines.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         ESPLINE_ENABLED = not ESPLINE_ENABLED
-        -- Cập nhật text ngắn gọn
-        BtnToggleESPLines.Text = "ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF")
+        updateButtonText(BtnToggleESPLines, "Định Vị Đường", ESPLINE_ENABLED, "เส้น")
     end)
 
     BtnToggleFOV.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         FOV_ENABLED = not FOV_ENABLED
-        BtnToggleFOV.Text = "Show FOV: " .. (FOV_ENABLED and "ON" or "OFF")
+        updateButtonText(BtnToggleFOV, "Hiển thị FOV", FOV_ENABLED, "⭕")
     end)
 
     BtnToggleTeamCheck.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         TEAMCHECK_ENABLED = not TEAMCHECK_ENABLED
-        BtnToggleTeamCheck.Text = "Team Check: " .. (TEAMCHECK_ENABLED and "ON" or "OFF")
+        updateButtonText(BtnToggleTeamCheck, "Bỏ qua đồng đội", TEAMCHECK_ENABLED, "🤝")
+    end)
+
+    -- Event Handler cho Rainbow FOV
+    BtnToggleRainbowFOV.MouseButton1Click:Connect(function()
+        if GUI_CLOSED then return end
+        RAINBOW_FOV_ENABLED = not RAINBOW_FOV_ENABLED
+        updateButtonText(BtnToggleRainbowFOV, "Rainbow FOV", RAINBOW_FOV_ENABLED, "🌈")
+        showNotification(RAINBOW_FOV_ENABLED and "Rainbow FOV Đã Bật" or "Rainbow FOV Đã Tắt") -- Dịch Notification
     end)
 
     CloseBtn.MouseButton1Click:Connect(function()
@@ -381,11 +624,12 @@ local function buildGUI()
         ESPLINE_ENABLED = false
         FOV_ENABLED = false
         TEAMCHECK_ENABLED = false
+        RAINBOW_FOV_ENABLED = false 
         GUI_CLOSED = true
-        ToggleBlur(false) 
+        ToggleBlur(false)
 
         if Frame then Frame.Visible = false end
-        if ScreenGui then ScreenGui.Enabled = false end 
+        if ScreenGui then ScreenGui.Enabled = false end
 
         -- Xóa tất cả các đối tượng Drawing
         if fovCircle then fovCircle.Visible = false end
@@ -393,6 +637,7 @@ local function buildGUI()
             if esp.Box then pcall(function() esp.Box:Remove() end) end
             if esp.Line then pcall(function() esp.Line:Remove() end) end
             if esp.IndexText then pcall(function() esp.IndexText:Remove() end) end
+            ESPs[plr] = nil
         end
     end)
 
@@ -406,15 +651,14 @@ buildGUI()
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if GUI_CLOSED then return end
-    
+
     if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
         if BtnToggleAimbot and BtnToggleAimbot.Parent then
-            -- Cập nhật text ngắn gọn
-            BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
+            updateButtonText(BtnToggleAimbot, "Aim", AIMBOT_ENABLED, "🔫")
         end
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled (Phím E)" or "Aimbot Disabled")
-    
+        showNotification(AIMBOT_ENABLED and "Aim BẬT (Phím E)" or "Aim TẮT") -- Dịch Notification
+
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if Frame then
             Frame.Visible = not Frame.Visible
@@ -436,6 +680,10 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         if ScreenGui.Parent ~= PlayerGui then
             ScreenGui.Parent = PlayerGui
         end
+        -- Cập nhật giá trị FOV khi respawn nếu có fovCircle
+        if fovCircle then
+            fovCircle.Radius = FOV_RADIUS_VALUE
+        end
     end
 end)
 
@@ -454,6 +702,11 @@ end)
 
 --== RENDER LOOP (CẬP NHẬT MÀU VÀ INDEX TEXT VỊ TRÍ) ==--
 
+-- Vị trí gốc cố định để hiển thị Index Text ĐƠN LẺ
+local INDEX_BASE_X = 0 
+local INDEX_BASE_Y = 10 
+local hue = 0 -- Biến lưu trữ giá trị Hue (0 đến 1)
+
 RunService.RenderStepped:Connect(function()
     if GUI_CLOSED then
         if fovCircle then fovCircle.Visible = false end
@@ -461,27 +714,51 @@ RunService.RenderStepped:Connect(function()
     end
 
     local visiblePlayerCount = 0
-    local playerIndex = 0 
+    local targetPlayer = getClosestToFOV() -- Lấy mục tiêu gần FOV nhất
 
-    if fovCircle then
-        if FOV_ENABLED and Camera then
+    if fovCircle and Camera then
+        if FOV_ENABLED then
             fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            fovCircle.Radius = FOV_RADIUS_VALUE
+            
+            -- [RAINBOW FOV LOGIC]
+            if RAINBOW_FOV_ENABLED then
+                -- Cập nhật Hue (tăng dần 0.01 mỗi khung hình)
+                hue = hue + 0.01 
+                if hue > 1 then hue = 0 end
+                
+                -- Áp dụng màu cầu vồng cho FOV Circle
+                fovCircle.Color = colorFromHSV(hue, 1, 1) -- S=1 (Saturation), V=1 (Value/Brightness)
+            else
+                -- Quay về màu mặc định nếu Rainbow tắt
+                fovCircle.Color = FOV_COLOR
+            end
+            
             fovCircle.Visible = true
         else
             fovCircle.Visible = false
         end
     end
 
+    -- Cập nhật vị trí X gốc cho Index Text (Căn giữa)
+    INDEX_BASE_X = Camera.ViewportSize.X/2
+
     for plr, esp in pairs(ESPs) do
         local character = plr.Character
         local shouldShow = ESP_ENABLED or ESPLINE_ENABLED
+        
+        -- Cờ xác định xem đây có phải người chơi ĐANG ĐƯỢC CHỌN để hiển thị Index Text không
+        local isTargetIndex = false 
         
         if esp and character and character:FindFirstChild("HumanoidRootPart") and Camera and shouldShow then
             local hrp = character.HumanoidRootPart
             local vec, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
+            -- Kiểm tra xem có phải đồng đội không
+            local isTeamMate = TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team
+            
             local current_color
-            if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+            if isTeamMate then
                 current_color = TEAM_COLOR
             else
                 current_color = ENEMY_COLOR -- TRẮNG (Cho Box và Line)
@@ -489,18 +766,32 @@ RunService.RenderStepped:Connect(function()
 
             if onScreen then
                 visiblePlayerCount = visiblePlayerCount + 1
-                playerIndex = playerIndex + 1
+
+                -- KIỂM TRA MỤC TIÊU INDEX ĐƠN LẺ
+                -- Chỉ hiển thị Index Text nếu người chơi này là mục tiêu gần FOV nhất VÀ Aimbot/ESPLINE đang bật
+                if plr == targetPlayer and (AIMBOT_ENABLED or ESPLINE_ENABLED) then
+                    isTargetIndex = true
+                    
+                    -- INDEX TEXT (Luôn hiển thị ở vị trí cố định, chỉ duy nhất 1 số)
+                    if esp.IndexText then
+                        -- Đặt Index Text cố định ở giữa trên
+                        esp.IndexText.Position = Vector2.new(INDEX_BASE_X - 24, INDEX_BASE_Y) -- X dịch 24px sang trái để căn giữa
+                        esp.IndexText.Text = "🎯" -- Biểu tượng mục tiêu
+                        esp.IndexText.Color = INDEX_COLOR_ENEMY -- ĐỎ
+                        esp.IndexText.Visible = true
+                    end
+                end
 
                 -- ESP BOX
                 local topVec = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0,3.5,0))
                 local bottomVec = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0,3.5,0))
                 local height = math.abs(topVec.Y - bottomVec.Y)
-                
+
                 if ESP_ENABLED then
                     if esp.Box then
                         esp.Box.Size = Vector2.new(height*0.6, height)
                         esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                        esp.Box.Color = current_color -- TRẮNG
+                        esp.Box.Color = current_color
                         esp.Box.Visible = true
                     end
                 else
@@ -513,53 +804,47 @@ RunService.RenderStepped:Connect(function()
                         -- Gốc tia cố định ở giữa cạnh trên
                         esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
                         esp.Line.To = Vector2.new(vec.X, vec.Y)
-                        esp.Line.Color = current_color -- TRẮNG
+                        esp.Line.Color = current_color
                         esp.Line.Visible = true
                     end
                 else
                     if esp.Line then esp.Line.Visible = false end
                 end
 
-                -- INDEX TEXT (Vị trí gốc của tia ESP)
-                if ESPLINE_ENABLED and esp.IndexText then
-                    local lineOriginX = Camera.ViewportSize.X/2
-                    local lineOriginY = 0
-                    
-                    -- Xác định màu cho Index Text: ĐỎ nếu là enemy, Xanh lá nếu là team
-                    local index_text_color = current_color
-                    if current_color == ENEMY_COLOR then
-                        index_text_color = INDEX_COLOR_ENEMY -- Sử dụng màu ĐỎ
-                    end
-                    
-                    -- Đặt số thứ tự gần vị trí khởi nguồn tia (ở giữa trên cùng)
-                    esp.IndexText.Position = Vector2.new(lineOriginX - 10, lineOriginY + 10) 
-                    esp.IndexText.Text = tostring(playerIndex)
-                    esp.IndexText.Color = index_text_color -- Sử dụng màu đã xác định (ĐỎ/Xanh Lá)
-                    esp.IndexText.Visible = true
-                else
-                    if esp.IndexText then esp.IndexText.Visible = false end
-                end
-
             else
+                -- Khi người chơi KHÔNG ở trên màn hình
                 if esp.Box then esp.Box.Visible = false end
                 if esp.Line then esp.Line.Visible = false end
                 if esp.IndexText then esp.IndexText.Visible = false end
             end
+            
+            -- ẨN Index Text cho những người chơi không phải là mục tiêu chính
+            if esp.IndexText and esp.IndexText.Visible and not isTargetIndex then
+                esp.IndexText.Visible = false
+            end
+            
         else
+            -- Khi Character hoặc Camera không hợp lệ
             if esp.Box then esp.Box.Visible = false end
             if esp.Line then esp.Line.Visible = false end
             if esp.IndexText then esp.IndexText.Visible = false end
         end
+        
+        -- Đảm bảo chỉ Index Text của mục tiêu chính mới hiển thị
+        if esp.IndexText and esp.IndexText.Visible and not isTargetIndex then
+            esp.IndexText.Visible = false
+        end
+        
     end
-    
+
     if PlayerCountLabel and Frame and Frame.Visible then
-        PlayerCountLabel.Text = "Players Scanned: " .. visiblePlayerCount .. (shouldShow and "" or " (ESP OFF)")
+        -- Cập nhật nhãn đếm người chơi (Đã dịch)
+        PlayerCountLabel.Text = "Người chơi hiển thị: " .. visiblePlayerCount .. (shouldShow and "" or "")
     end
 
     if AIMBOT_ENABLED and Camera then
-        local target = getClosestToFOV()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.Head.Position)
         end
     end
 end)
