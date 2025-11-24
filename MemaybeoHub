@@ -1,8 +1,11 @@
+--== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON VÀ THÊM NÚT MỞ/ĐÓNG MENU (EDITED) ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting") -- THÊM: Để kiểm soát hiệu ứng làm mờ
+local TweenService = game:GetService("TweenService") -- THÊM: Để tạo hiệu ứng chuyển đổi mượt mà
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -16,7 +19,7 @@ local FOV_ENABLED = false
 local TEAMCHECK_ENABLED = false
 local GUI_CLOSED = false -- Biến này sẽ kiểm soát việc script có chạy hay không (dùng cho CloseBtn)
 
---== FOV SETUP ==--
+--== FOV SETUP (Giữ nguyên) ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -105,69 +108,27 @@ local function getClosestToFOV()
     return closest
 end
 
---== GUI DEFINITIONS ==--
+--== GUI DEFINITIONS & BLUR SETUP ==--
 local ScreenGui, Frame, TitleBar, InfoLabel1, InfoLabel2
 local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleTeamCheck, CloseBtn
 local CustomCopyBtn 
 local ToggleBtn -- Nút mở/đóng menu mới
 local Notification
 
-local gui = Instance.new("ScreenGui")
-gui.Parent = PlayerGui
-
--- Tạo Frame menu như bình thường
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 260, 0, 340)
-Frame.Position = UDim2.new(0.5, -130, 0.5, -170)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BackgroundTransparency = 0.25   -- Làm mờ nhẹ
-Frame.Parent = ScreenGui
-
-
-
--- Bo góc menu
-local corner = Instance.new("UICorner", Frame)
-corner.CornerRadius = UDim.new(0, 14)
-
--- Thêm gradient giúp menu trông mờ đẹp hơn
-local gradient = Instance.new("UIGradient", Frame)
-gradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,40)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(25,25,25))
-}
-gradient.Transparency = NumberSequence.new{
-    NumberSequenceKeypoint.new(0, 0.15),
-    NumberSequenceKeypoint.new(1, 0.25)
-}
-
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 270, 0, 330)
-frame.Position = UDim2.new(0.5, -135, 0.5, -165)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.Visible = false
-
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 14)
-
--- Blur
+-- Setup Blur Effect (Làm mờ nền game)
 local blur = Instance.new("BlurEffect")
-blur.Size = 0
+blur.Size = 0 -- Bắt đầu với size 0 (không mờ)
 blur.Parent = Lighting
 
 local function ToggleBlur(state)
+    -- Sử dụng TweenService để tạo hiệu ứng chuyển đổi Blur mượt mà
     TweenService:Create(
         blur,
-        TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-        {Size = state and 14 or 0}
+        TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+        {Size = state and 14 or 0} -- Mờ với size 14 khi mở, rõ với size 0 khi đóng
     ):Play()
 end
 
-local menuOpen = false
-local function ToggleMenu()
-    menuOpen = not menuOpen
-    frame.Visible = menuOpen
-    ToggleBlur(menuOpen)
-end
 function showNotification(msg)
     if GUI_CLOSED then return end
     if not Notification or not Notification.Parent then
@@ -204,39 +165,36 @@ local function buildGUI()
     ToggleBtn.TextSize = 20
     ToggleBtn.Text = "㊎" -- Hoặc bất kỳ biểu tượng nào
 
-local UserInputService = game:GetService("UserInputService")
+    -- Kéo thả nút Toggle
+    local draggingBtn = false
+    local dragStartBtn
+    local startPosBtn
 
-local draggingBtn = false
-local dragStartBtn
-local startPosBtn
+    ToggleBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingBtn = true
+            dragStartBtn = input.Position
+            startPosBtn = ToggleBtn.Position
+        end
+    end)
 
-ToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingBtn = true
-        dragStartBtn = input.Position
-        startPosBtn = ToggleBtn.Position
-    end
-end)
+    ToggleBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingBtn = false
+        end
+    end)
 
-ToggleBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingBtn = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingBtn and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStartBtn
-        ToggleBtn.Position = UDim2.new(
-            startPosBtn.X.Scale,
-            startPosBtn.X.Offset + delta.X,
-            startPosBtn.Y.Scale,
-            startPosBtn.Y.Offset + delta.Y
-        )
-    end
-end)
-
-
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingBtn and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStartBtn
+            ToggleBtn.Position = UDim2.new(
+                startPosBtn.X.Scale,
+                startPosBtn.X.Offset + delta.X,
+                startPosBtn.Y.Scale,
+                startPosBtn.Y.Offset + delta.Y
+            )
+        end
+    end)
     
     local cornerToggle = Instance.new("UICorner", ToggleBtn)
     cornerToggle.CornerRadius = UDim.new(0, 5) -- Viền bẻ cong
@@ -246,9 +204,14 @@ end)
     Frame.Size = UDim2.new(0, 240, 0, 380) 
     Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Frame.BackgroundTransparency = 0.2 -- LÀM MỜ NỀN FRAME NHẸ
     Frame.Active = true
     Frame.Draggable = true
     Frame.Visible = false -- Mặc định ẩn
+
+    -- THÊM: Bo tròn góc menu chính
+    local menuCorner = Instance.new("UICorner", Frame)
+    menuCorner.CornerRadius = UDim.new(0, 10) -- Bo tròn 10 pixels
 
     TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -257,6 +220,11 @@ end)
     TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
     TitleBar.Font = Enum.Font.SourceSansBold
     TitleBar.TextSize = 20
+    
+    -- THÊM: Bo tròn góc cho TitleBar (chỉ 2 góc trên)
+    local titleCorner = Instance.new("UICorner", TitleBar)
+    titleCorner.CornerRadius = UDim.new(0, 10) 
+    -- TitleBar nằm trên Frame đã được bo, nên nó sẽ bo tròn tự động
 
     InfoLabel1 = Instance.new("TextLabel", Frame)
     InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
@@ -285,6 +253,9 @@ end)
         btn.TextColor3 = Color3.fromRGB(255,255,255)
         btn.Font = Enum.Font.SourceSansBold
         btn.TextSize = 16
+        -- Bo tròn góc cho Button
+        local btnCorner = Instance.new("UICorner", btn)
+        btnCorner.CornerRadius = UDim.new(0, 8) 
         return btn
     end
 
@@ -308,6 +279,9 @@ end)
     Notification.TextColor3 = Color3.fromRGB(255,255,255)
     Notification.TextScaled = true
     Notification.Visible = false
+    -- Bo tròn góc cho Notification
+    local notiCorner = Instance.new("UICorner", Notification)
+    notiCorner.CornerRadius = UDim.new(0, 5)
 
     --== EVENT HANDLERS ==--
 
@@ -315,6 +289,7 @@ end)
     ToggleBtn.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         Frame.Visible = not Frame.Visible
+        ToggleBlur(Frame.Visible) -- KÍCH HOẠT BLUR
     end)
 
     -- Nút Custom Copy (Giữ nguyên chức năng)
@@ -328,11 +303,11 @@ end)
         end)
 
         if copySuccessful then
-             print("PC RBLX: Đã copy thành công: " .. textToCopy)
-             showNotification("ĐÃ COPY: " .. textToCopy)
+              print("PC RBLX: Đã copy thành công: " .. textToCopy)
+              showNotification("ĐÃ COPY: " .. textToCopy)
         else
-             print("PC RBLX: KHÔNG THỂ COPY. Executor chặn setclipboard().")
-             showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
+              print("PC RBLX: KHÔNG THỂ COPY. Executor chặn setclipboard().")
+              showNotification("ĐÃ COPY: " .. textToCopy .. " (Thất bại)")
         end
     end)
     
@@ -376,6 +351,7 @@ end)
         FOV_ENABLED = false
         TEAMCHECK_ENABLED = false
         GUI_CLOSED = true
+        ToggleBlur(false) -- TẮT BLUR KHI ĐÓNG VĨNH VIỄN
 
         if Frame then Frame.Visible = false end
         if ScreenGui then ScreenGui.Enabled = false end -- Disable toàn bộ ScreenGui
@@ -407,6 +383,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if Frame then
             Frame.Visible = not Frame.Visible
+            ToggleBlur(Frame.Visible) -- KÍCH HOẠT BLUR
         else
             pcall(buildGUI)
         end
