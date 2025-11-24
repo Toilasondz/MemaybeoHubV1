@@ -1,4 +1,4 @@
---== PC RBLX v2.2 - FPS ĐỘC LẬP CÓ THỂ KÉO THẢ ==--
+--== PC RBLX v2.6 - Fix Menu Ẩn Mặc Định & Sửa Tên Nút ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -22,9 +22,10 @@ local TEAMCHECK_ENABLED = false
 local GUI_CLOSED = false 
 
 --== CÀI ĐẶT MÀU SẮC ==--
-local ENEMY_COLOR = Color3.fromRGB(255, 0, 0) -- ĐỎ
-local TEAM_COLOR = Color3.fromRGB(0, 255, 0) -- XANH LÁ
-local FOV_COLOR = ENEMY_COLOR
+local ENEMY_COLOR = Color3.fromRGB(255, 255, 255)     -- TRẮNG (Cho ESP Box và Line)
+local TEAM_COLOR = Color3.fromRGB(0, 255, 0)         -- XANH LÁ
+local FOV_COLOR = Color3.fromRGB(0, 255, 0)          -- XANH LÁ CÂY 
+local INDEX_COLOR_ENEMY = Color3.fromRGB(255, 0, 0)  -- ĐỎ (Cho Index Text của Enemy)
 
 --== GUI & DRAWING DEFINITIONS ==--
 local ScreenGui, Frame, ToggleBtn
@@ -32,9 +33,9 @@ local BtnToggleAimbot, BtnToggleESP, BtnToggleESPLines, BtnToggleFOV, BtnToggleT
 local CustomCopyBtn 
 local Notification
 local PlayerCountLabel 
-local FPSMover -- NEW: Nút/Label FPS Độc Lập
+local FPSMover 
 
---== FOV SETUP (Giữ nguyên) ==--
+--== FOV SETUP ==--
 local fovCircle
 do
     local success, circle = pcall(function() return Drawing.new("Circle") end)
@@ -50,7 +51,7 @@ do
     end
 end
 
---== ESP SETUP (Giữ nguyên) ==--
+--== ESP SETUP ==--
 local ESPs = {}
 
 local function createESP(plr)
@@ -71,18 +72,18 @@ local function createESP(plr)
         ESPs[plr].Box.Visible = false
         ESPs[plr].Box.Thickness = 1
         ESPs[plr].Box.Filled = false
-        ESPs[plr].Box.Color = ENEMY_COLOR
+        ESPs[plr].Box.Color = ENEMY_COLOR -- TRẮNG
     end
     if ESPs[plr].Line then
         ESPs[plr].Line.Visible = false
         ESPs[plr].Line.Thickness = 1
-        ESPs[plr].Line.Color = ENEMY_COLOR
+        ESPs[plr].Line.Color = ENEMY_COLOR -- TRẮNG
     end
     if ESPs[plr].IndexText then 
         ESPs[plr].IndexText.Visible = false
-        ESPs[plr].IndexText.Size = 12
+        ESPs[plr].IndexText.Size = 36 -- KÍCH THƯỚC LỚN HƠN
         ESPs[plr].IndexText.Outline = true
-        ESPs[plr].IndexText.Color = ENEMY_COLOR
+        ESPs[plr].IndexText.Color = ENEMY_COLOR 
     end
 end
 
@@ -100,7 +101,7 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
--- [Các Core Functions (isVisible, getClosestToFOV, ToggleBlur, showNotification) giữ nguyên]
+-- [Core Functions: isVisible, getClosestToFOV, ToggleBlur, showNotification]
 
 local function isVisible(part)
     if not part then return false end
@@ -159,18 +160,17 @@ function showNotification(msg)
     end)
 end
 
---== GUI BUILDER FUNCTION (Tách FPS) ==--
+--== GUI BUILDER FUNCTION ==--
 local function buildGUI()
     if ScreenGui and ScreenGui.Parent then 
         if not ToggleBtn.Parent then ToggleBtn.Parent = ScreenGui end
-        if not FPSMover.Parent then FPSMover.Parent = ScreenGui end -- Đảm bảo FPS luôn hiển thị
+        if not FPSMover.Parent then FPSMover.Parent = ScreenGui end 
         return 
     end
     
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "MeMayBeo Hub"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = PlayerGui
 
     -- 0. FPS MOVER (NEW: Phần tử độc lập, có thể kéo thả)
     FPSMover = Instance.new("TextLabel", ScreenGui)
@@ -201,7 +201,7 @@ local function buildGUI()
     local cornerToggle = Instance.new("UICorner", ToggleBtn)
     cornerToggle.CornerRadius = UDim.new(0, 5) 
 
-    -- Logic Kéo thả cho ToggleBtn (Giữ nguyên)
+    -- Logic Kéo thả cho ToggleBtn
     local draggingBtn = false
     local dragStartBtn
     local startPosBtn
@@ -231,10 +231,10 @@ local function buildGUI()
     end)
 
 
-    -- 2. FRAME CHÍNH (Menu) - Quay lại kích thước cũ
+    -- 2. FRAME CHÍNH (Menu) 
     Frame = Instance.new("Frame", ScreenGui)
     Frame.Size = UDim2.new(0, 240, 0, 380) 
-    Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+    Frame.Position = UDim2.new(0.5, -120, 0.5, -190) -- Căn giữa màn hình
     Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
     Frame.BackgroundTransparency = 0.25 
     Frame.Active = true
@@ -257,15 +257,14 @@ local function buildGUI()
     local TitleBar = Instance.new("TextLabel", Frame)
     TitleBar.Size = UDim2.new(1, 0, 0, 40)
     TitleBar.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    TitleBar.Text = "MeMayBeo Hub"
+    TitleBar.Text = "MeMayBeo Hub (K HOẶC ㊎ ĐỂ ĐÓNG)"
     TitleBar.TextColor3 = Color3.fromRGB(255,255,255)
     TitleBar.Font = Enum.Font.SourceSansBold
-    TitleBar.TextSize = 20
+    TitleBar.TextSize = 16 
     
-    -- Các Label thông tin dịch lên do không còn FPS Label ở vị trí 40
     local InfoLabel1 = Instance.new("TextLabel", Frame)
     InfoLabel1.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel1.Position = UDim2.new(0, 10, 0, 40) -- 55 -> 40
+    InfoLabel1.Position = UDim2.new(0, 10, 0, 40) 
     InfoLabel1.BackgroundTransparency = 1
     InfoLabel1.Text = "Tik Tok @hoangvanson_9k"
     InfoLabel1.TextColor3 = Color3.fromRGB(200,200,200)
@@ -274,7 +273,7 @@ local function buildGUI()
 
     local InfoLabel2 = Instance.new("TextLabel", Frame)
     InfoLabel2.Size = UDim2.new(1, -20, 0, 20)
-    InfoLabel2.Position = UDim2.new(0, 10, 0, 55) -- 70 -> 55
+    InfoLabel2.Position = UDim2.new(0, 10, 0, 55) 
     InfoLabel2.BackgroundTransparency = 1
     InfoLabel2.Text = "MeMayBeo Hub by @hoangvanson_9k"
     InfoLabel2.TextColor3 = Color3.fromRGB(200,200,200)
@@ -283,7 +282,7 @@ local function buildGUI()
     
     PlayerCountLabel = Instance.new("TextLabel", Frame)
     PlayerCountLabel.Size = UDim2.new(1, -20, 0, 20)
-    PlayerCountLabel.Position = UDim2.new(0, 10, 0, 75) -- 90 -> 75
+    PlayerCountLabel.Position = UDim2.new(0, 10, 0, 75) 
     PlayerCountLabel.BackgroundTransparency = 1
     PlayerCountLabel.Text = "Players Scanned: 0"
     PlayerCountLabel.TextColor3 = Color3.fromRGB(255,255,255)
@@ -305,13 +304,14 @@ local function buildGUI()
         return btn
     end
 
-    -- Vị trí các nút đã được dịch lên
-    BtnToggleAimbot = createButton("Aimbot: OFF", 100) -- 120 -> 100
+    -- Sửa lại tên nút theo yêu cầu (ngắn gọn hơn)
+    BtnToggleAimbot = createButton("Aimbot: OFF", 100) 
     BtnToggleESP = createButton("ESP: OFF", 140)
     BtnToggleESPLines = createButton("ESP Lines: OFF", 180)
     BtnToggleFOV = createButton("Show FOV: OFF", 220)
     BtnToggleTeamCheck = createButton("Team Check: OFF", 260)
     
+    -- Sửa lại tên nút CLOSE theo yêu cầu (CLOSE)
     CloseBtn = createButton("CLOSE", 300, Color3.fromRGB(150,50,50)) 
     
     CustomCopyBtn = createButton("CLICK NẾU BẠN ĐẸP TRAI", 340, Color3.fromRGB(50, 150, 255))
@@ -327,7 +327,7 @@ local function buildGUI()
     Notification.TextScaled = true
     Notification.Visible = false
 
-    -- [Event Handlers giữ nguyên]
+    -- [Event Handlers]
     ToggleBtn.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         Frame.Visible = not Frame.Visible
@@ -344,19 +344,22 @@ local function buildGUI()
     BtnToggleAimbot.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         AIMBOT_ENABLED = not AIMBOT_ENABLED
+        -- Cập nhật text ngắn gọn
         BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
+        showNotification(AIMBOT_ENABLED and "Aimbot Enabled (Phím E)" or "Aimbot Disabled")
     end)
 
     BtnToggleESP.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         ESP_ENABLED = not ESP_ENABLED
+        -- Cập nhật text ngắn gọn
         BtnToggleESP.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
     end)
 
     BtnToggleESPLines.MouseButton1Click:Connect(function()
         if GUI_CLOSED then return end
         ESPLINE_ENABLED = not ESPLINE_ENABLED
+        -- Cập nhật text ngắn gọn
         BtnToggleESPLines.Text = "ESP Lines: " .. (ESPLINE_ENABLED and "ON" or "OFF")
     end)
 
@@ -384,6 +387,7 @@ local function buildGUI()
         if Frame then Frame.Visible = false end
         if ScreenGui then ScreenGui.Enabled = false end 
 
+        -- Xóa tất cả các đối tượng Drawing
         if fovCircle then fovCircle.Visible = false end
         for _, esp in pairs(ESPs) do
             if esp.Box then pcall(function() esp.Box:Remove() end) end
@@ -391,11 +395,14 @@ local function buildGUI()
             if esp.IndexText then pcall(function() esp.IndexText:Remove() end) end
         end
     end)
+
+    -- Đặt ScreenGui vào PlayerGui sau khi tất cả đã được thiết lập
+    ScreenGui.Parent = PlayerGui
 end
 
 buildGUI()
 
---== INPUT & CHARACTER EVENTS (Giữ nguyên) ==--
+--== INPUT & CHARACTER EVENTS ==--
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if GUI_CLOSED then return end
@@ -403,9 +410,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.E then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
         if BtnToggleAimbot and BtnToggleAimbot.Parent then
+            -- Cập nhật text ngắn gọn
             BtnToggleAimbot.Text = "Aimbot: " .. (AIMBOT_ENABLED and "ON" or "OFF")
         end
-        showNotification(AIMBOT_ENABLED and "Aimbot Enabled" or "Aimbot Disabled")
+        showNotification(AIMBOT_ENABLED and "Aimbot Enabled (Phím E)" or "Aimbot Disabled")
     
     elseif not gameProcessed and input.KeyCode == Enum.KeyCode.K then
         if Frame then
@@ -431,7 +439,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
---== FPS COUNTER SETUP (Cập nhật FPSMover) ==--
+--== FPS COUNTER SETUP ==--
 local lastTick = tick()
 RunService.Heartbeat:Connect(function()
     local now = tick()
@@ -444,7 +452,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
---== RENDER LOOP (Giữ nguyên) ==--
+--== RENDER LOOP (CẬP NHẬT MÀU VÀ INDEX TEXT VỊ TRÍ) ==--
 
 RunService.RenderStepped:Connect(function()
     if GUI_CLOSED then
@@ -476,7 +484,7 @@ RunService.RenderStepped:Connect(function()
             if TEAMCHECK_ENABLED and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
                 current_color = TEAM_COLOR
             else
-                current_color = ENEMY_COLOR
+                current_color = ENEMY_COLOR -- TRẮNG (Cho Box và Line)
             end
 
             if onScreen then
@@ -492,7 +500,7 @@ RunService.RenderStepped:Connect(function()
                     if esp.Box then
                         esp.Box.Size = Vector2.new(height*0.6, height)
                         esp.Box.Position = Vector2.new(vec.X - esp.Box.Size.X/2, vec.Y - esp.Box.Size.Y/2)
-                        esp.Box.Color = current_color
+                        esp.Box.Color = current_color -- TRẮNG
                         esp.Box.Visible = true
                     end
                 else
@@ -502,20 +510,31 @@ RunService.RenderStepped:Connect(function()
                 -- ESP LINES
                 if ESPLINE_ENABLED then
                     if esp.Line then
+                        -- Gốc tia cố định ở giữa cạnh trên
                         esp.Line.From = Vector2.new(Camera.ViewportSize.X/2, 0)
                         esp.Line.To = Vector2.new(vec.X, vec.Y)
-                        esp.Line.Color = current_color
+                        esp.Line.Color = current_color -- TRẮNG
                         esp.Line.Visible = true
                     end
                 else
                     if esp.Line then esp.Line.Visible = false end
                 end
 
-                -- INDEX TEXT
+                -- INDEX TEXT (Vị trí gốc của tia ESP)
                 if ESPLINE_ENABLED and esp.IndexText then
-                    esp.IndexText.Position = Vector2.new(vec.X + 5, vec.Y - 5) 
+                    local lineOriginX = Camera.ViewportSize.X/2
+                    local lineOriginY = 0
+                    
+                    -- Xác định màu cho Index Text: ĐỎ nếu là enemy, Xanh lá nếu là team
+                    local index_text_color = current_color
+                    if current_color == ENEMY_COLOR then
+                        index_text_color = INDEX_COLOR_ENEMY -- Sử dụng màu ĐỎ
+                    end
+                    
+                    -- Đặt số thứ tự gần vị trí khởi nguồn tia (ở giữa trên cùng)
+                    esp.IndexText.Position = Vector2.new(lineOriginX - 10, lineOriginY + 10) 
                     esp.IndexText.Text = tostring(playerIndex)
-                    esp.IndexText.Color = current_color
+                    esp.IndexText.Color = index_text_color -- Sử dụng màu đã xác định (ĐỎ/Xanh Lá)
                     esp.IndexText.Visible = true
                 else
                     if esp.IndexText then esp.IndexText.Visible = false end
@@ -535,8 +554,6 @@ RunService.RenderStepped:Connect(function()
     
     if PlayerCountLabel and Frame and Frame.Visible then
         PlayerCountLabel.Text = "Players Scanned: " .. visiblePlayerCount .. (shouldShow and "" or " (ESP OFF)")
-    elseif PlayerCountLabel then
-        PlayerCountLabel.Text = "Players Scanned: 0"
     end
 
     if AIMBOT_ENABLED and Camera then
