@@ -1,4 +1,3 @@
---== PC RBLX v1.8 - GỘP CHỨC NĂNG CUSTOM BUTTON HOANGSON VÀ THÊM NÚT MỞ/ĐÓNG MENU ==--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -113,6 +112,62 @@ local CustomCopyBtn
 local ToggleBtn -- Nút mở/đóng menu mới
 local Notification
 
+local gui = Instance.new("ScreenGui")
+gui.Parent = PlayerGui
+
+-- Tạo Frame menu như bình thường
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 260, 0, 340)
+Frame.Position = UDim2.new(0.5, -130, 0.5, -170)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BackgroundTransparency = 0.25   -- Làm mờ nhẹ
+Frame.Parent = ScreenGui
+
+
+
+-- Bo góc menu
+local corner = Instance.new("UICorner", Frame)
+corner.CornerRadius = UDim.new(0, 14)
+
+-- Thêm gradient giúp menu trông mờ đẹp hơn
+local gradient = Instance.new("UIGradient", Frame)
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25,25,25))
+}
+gradient.Transparency = NumberSequence.new{
+    NumberSequenceKeypoint.new(0, 0.15),
+    NumberSequenceKeypoint.new(1, 0.25)
+}
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 270, 0, 330)
+frame.Position = UDim2.new(0.5, -135, 0.5, -165)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Visible = false
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 14)
+
+-- Blur
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Parent = Lighting
+
+local function ToggleBlur(state)
+    TweenService:Create(
+        blur,
+        TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+        {Size = state and 14 or 0}
+    ):Play()
+end
+
+local menuOpen = false
+local function ToggleMenu()
+    menuOpen = not menuOpen
+    frame.Visible = menuOpen
+    ToggleBlur(menuOpen)
+end
 function showNotification(msg)
     if GUI_CLOSED then return end
     if not Notification or not Notification.Parent then
@@ -140,21 +195,14 @@ local function buildGUI()
     ScreenGui.Parent = PlayerGui
 
     -- 1. NÚT MỞ/ĐÓNG MENU (ToggleBtn)
-local ToggleBtn = Instance.new("ImageButton")
-ToggleBtn.Parent = ScreenGui
-ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
-ToggleBtn.Position = UDim2.new(0, 10, 0, 10)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-
--- Gán ảnh icon
-ToggleBtn.Image = "rbxassetid://126571223906795"
-ToggleBtn.ImageRectOffset = Vector2.new(4, 4)
-ToggleBtn.ImageRectSize = Vector2.new(36, 36)
-
--- Bo góc
-local corner = Instance.new("UICorner", ToggleBtn)
-corner.CornerRadius = UDim.new(0, 6)
-
+    ToggleBtn = Instance.new("TextButton", ScreenGui)
+    ToggleBtn.Size = UDim2.new(0, 30, 0, 30)
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 10) -- Góc trên bên trái
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.Font = Enum.Font.SourceSansBold
+    ToggleBtn.TextSize = 20
+    ToggleBtn.Text = "㊎" -- Hoặc bất kỳ biểu tượng nào
 
 local UserInputService = game:GetService("UserInputService")
 
